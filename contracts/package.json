@@ -11,7 +11,8 @@
     "format": "prettier --write \"contracts/**/*.sol\" \"scripts/**/*.js\" \"test/**/*.js\"",
     "format:check": "prettier --check \"contracts/**/*.sol\" \"scripts/**/*.js\" \"test/**/*.js\"",
     "deploy:games": "hardhat run scripts/deploy-games.js --network monadTestnet",
-    "deploy:streak": "hardhat run scripts/deploy-streak.js --network monadTestnet"
+    "deploy:streak": "hardhat run scripts/deploy-streak.js --network monadTestnet",
+    "deploy:badges": "hardhat run scripts/deploy-badges.js --network monadTestnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
