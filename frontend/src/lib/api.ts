@@ -23,7 +23,28 @@ export type AppConfig = {
   practice: { address: string | null };
 };
 
-export type DuelStats = { played: number; wins: number; draws: number; losses: number };
+export type DuelStats = {
+  played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  winStreak: number;
+  bestWinStreak: number;
+  todayPlayed: number;
+  dailyLimit: number;
+};
+
+export type StreakTree = {
+  contract: string;
+  streak: number;
+  dailyReward: string;
+  milestones: { day: number; reward: string; reached: boolean; claimed: boolean }[];
+  next: { day: number; reward: string } | null;
+  daysToNext: number;
+};
+
+export type Badge = { id: number; name: string; kind: "streak" | "duel"; threshold: number; progress: number; earned: boolean; tokenId: number };
+export type BadgesResponse = { contract: string; streak: number; duelWinStreak: number; bestDuelWinStreak: number; badges: Badge[] };
 
 export type PracticeState = {
   energy: number;
@@ -111,6 +132,9 @@ export const api = {
   user: (address: string) => request<UserResponse>(`/api/users/${address}`),
   leaderboard: () => request<LeaderboardEntry[]>("/api/leaderboard"),
   certificates: (address: string) => request<CertificateInfo[]>(`/api/certificates/${address}`),
+  streakTree: (address: string) => request<StreakTree>(`/api/streak-tree/${address}`),
+  badges: (address: string) => request<BadgesResponse>(`/api/badges/${address}`),
+  badgeSignature: (address: string, id: number) => post<{ signature: `0x${string}` }>("/api/badges/signature", { address, id }),
   duelStats: (address: string) => request<DuelStats>(`/api/duels/${address}`),
   practice: (address: string) => request<PracticeState>(`/api/practice/${address}`),
   practiceStart: (address: string, level: number) =>
