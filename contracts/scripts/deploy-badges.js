@@ -5,7 +5,8 @@ const hre = require("hardhat");
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
-  const dir = process.env.CONTRACTS_OUT_DIR || path.join(__dirname, "..", "..", "backend", "src", "contract");
+  const dir =
+    process.env.CONTRACTS_OUT_DIR || path.join(__dirname, "..", "..", "backend", "src", "contract");
   const moningo = require(path.join(dir, "moningo.json")).address;
   const verifier = process.env.VERIFIER_ADDRESS || deployer.address;
   const c = await hre.ethers.deployContract("MoningoBadges", [moningo, verifier]);
@@ -13,7 +14,14 @@ async function main() {
   const address = await c.getAddress();
   const { abi } = await hre.artifacts.readArtifact("MoningoBadges");
   const chainId = Number((await hre.ethers.provider.getNetwork()).chainId);
-  fs.writeFileSync(path.join(dir, "badges.json"), JSON.stringify({ address, chainId, moningo, deployedAt: new Date().toISOString(), abi }, null, 2));
+  fs.writeFileSync(
+    path.join(dir, "badges.json"),
+    JSON.stringify(
+      { address, chainId, moningo, deployedAt: new Date().toISOString(), abi },
+      null,
+      2
+    )
+  );
   console.log(`MoningoBadges: ${address} (moningo ${moningo}, verifier ${verifier})`);
 }
 

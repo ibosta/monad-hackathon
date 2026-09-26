@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 interface IMoningoStreaks {
     function userStreaks(address user) external view returns (uint256);
@@ -28,8 +28,16 @@ contract MoningoStreakRewards is Ownable {
         moningo = IMoningoStreaks(moningo_);
         _days = [1, 3, 5, 7, 10, 14, 21, 30, 50, 100];
         _rewards = [
-            0.005 ether, 0.01 ether, 0.015 ether, 0.03 ether, 0.04 ether,
-            0.07 ether, 0.1 ether, 0.2 ether, 0.3 ether, 0.6 ether
+            0.005 ether,
+            0.01 ether,
+            0.015 ether,
+            0.03 ether,
+            0.04 ether,
+            0.07 ether,
+            0.1 ether,
+            0.2 ether,
+            0.3 ether,
+            0.6 ether
         ];
     }
 
@@ -50,13 +58,13 @@ contract MoningoStreakRewards is Ownable {
         if (claimed[msg.sender][day]) revert AlreadyClaimed();
         if (address(this).balance < reward) revert PoolEmpty();
         claimed[msg.sender][day] = true;
-        (bool ok,) = msg.sender.call{value: reward}("");
+        (bool ok, ) = msg.sender.call{ value: reward }("");
         if (!ok) revert TransferFailed();
         emit MilestoneClaimed(msg.sender, day, reward);
     }
 
     function withdraw(uint256 amount) external onlyOwner {
-        (bool ok,) = owner().call{value: amount}("");
+        (bool ok, ) = owner().call{ value: amount }("");
         if (!ok) revert TransferFailed();
     }
 }

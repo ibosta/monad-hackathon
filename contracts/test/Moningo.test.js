@@ -22,15 +22,23 @@ describe("Moningo", () => {
 
   it("stakes and emits StreakStarted", async () => {
     const { moningo, alice } = await loadFixture(deploy);
-    await expect(moningo.connect(alice).startStreak({ value: STAKE })).to.emit(moningo, "StreakStarted");
+    await expect(moningo.connect(alice).startStreak({ value: STAKE })).to.emit(
+      moningo,
+      "StreakStarted"
+    );
     expect(await moningo.totalLocked()).to.equal(STAKE);
   });
 
   it("rejects wrong stake and double start", async () => {
     const { moningo, alice } = await loadFixture(deploy);
-    await expect(moningo.connect(alice).startStreak({ value: 1n })).to.be.revertedWithCustomError(moningo, "WrongStake");
+    await expect(moningo.connect(alice).startStreak({ value: 1n })).to.be.revertedWithCustomError(
+      moningo,
+      "WrongStake"
+    );
     await moningo.connect(alice).startStreak({ value: STAKE });
-    await expect(moningo.connect(alice).startStreak({ value: STAKE })).to.be.revertedWithCustomError(moningo, "StreakActive");
+    await expect(
+      moningo.connect(alice).startStreak({ value: STAKE })
+    ).to.be.revertedWithCustomError(moningo, "StreakActive");
   });
 
   it("refunds stake + reward on completion with verifier signature", async () => {
@@ -49,17 +57,27 @@ describe("Moningo", () => {
     await moningo.connect(alice).startStreak({ value: STAKE });
     const sig = await sign(alice);
     await moningo.connect(alice).completeEnglishTask(sig);
-    await expect(moningo.connect(alice).completeEnglishTask(sig)).to.be.revertedWithCustomError(moningo, "NoActiveStreak");
+    await expect(moningo.connect(alice).completeEnglishTask(sig)).to.be.revertedWithCustomError(
+      moningo,
+      "NoActiveStreak"
+    );
     await moningo.connect(alice).startStreak({ value: STAKE });
-    await expect(moningo.connect(alice).completeEnglishTask(sig)).to.be.revertedWithCustomError(moningo, "BadSignature");
+    await expect(moningo.connect(alice).completeEnglishTask(sig)).to.be.revertedWithCustomError(
+      moningo,
+      "BadSignature"
+    );
   });
 
   it("rejects non-verifier signatures and other users' signatures", async () => {
     const { moningo, alice, bob, sign } = await loadFixture(deploy);
     await moningo.connect(alice).startStreak({ value: STAKE });
-    await expect(moningo.connect(alice).completeEnglishTask(await sign(alice, alice))).to.be.revertedWithCustomError(moningo, "BadSignature");
+    await expect(
+      moningo.connect(alice).completeEnglishTask(await sign(alice, alice))
+    ).to.be.revertedWithCustomError(moningo, "BadSignature");
     await moningo.connect(bob).startStreak({ value: STAKE });
-    await expect(moningo.connect(bob).completeEnglishTask(await sign(alice))).to.be.revertedWithCustomError(moningo, "BadSignature");
+    await expect(
+      moningo.connect(bob).completeEnglishTask(await sign(alice))
+    ).to.be.revertedWithCustomError(moningo, "BadSignature");
   });
 
   it("expired stake is forfeited to pool and streak resets", async () => {
@@ -67,8 +85,13 @@ describe("Moningo", () => {
     await completeDay(moningo, alice, sign);
     await moningo.connect(alice).startStreak({ value: STAKE });
     await time.increase(86401);
-    await expect(moningo.connect(alice).completeEnglishTask(await sign(alice))).to.be.revertedWithCustomError(moningo, "StreakExpired");
-    await expect(moningo.connect(alice).startStreak({ value: STAKE })).to.emit(moningo, "StreakLost");
+    await expect(
+      moningo.connect(alice).completeEnglishTask(await sign(alice))
+    ).to.be.revertedWithCustomError(moningo, "StreakExpired");
+    await expect(moningo.connect(alice).startStreak({ value: STAKE })).to.emit(
+      moningo,
+      "StreakLost"
+    );
     expect(await moningo.userStreaks(alice.address)).to.equal(0);
     expect(await moningo.totalLocked()).to.equal(STAKE);
   });
@@ -77,7 +100,9 @@ describe("Moningo", () => {
     const [, verifier, alice] = await ethers.getSigners();
     const moningo = await ethers.deployContract("Moningo", [verifier.address]);
     await moningo.connect(alice).startStreak({ value: STAKE });
-    const sig = await verifier.signMessage(ethers.getBytes(await moningo.taskDigest(alice.address)));
+    const sig = await verifier.signMessage(
+      ethers.getBytes(await moningo.taskDigest(alice.address))
+    );
     const tx = moningo.connect(alice).completeEnglishTask(sig);
     await expect(tx).to.changeEtherBalance(alice, STAKE);
     await expect(tx).not.to.emit(moningo, "RewardPaid");
@@ -89,39 +114,67 @@ describe("Moningo", () => {
 
   it("paid level test mints a soulbound CEFR certificate", async () => {
     const { moningo, verifier, alice, bob } = await loadFixture(deploy);
-    await expect(moningo.connect(alice).claimCertificate(3, "0x")).to.be.revertedWithCustomError(moningo, "NoPaidExam");
-    await expect(moningo.connect(alice).startLevelTest({ value: 1n })).to.be.revertedWithCustomError(moningo, "WrongFee");
+    await expect(moningo.connect(alice).claimCertificate(3, "0x")).to.be.revertedWithCustomError(
+      moningo,
+      "NoPaidExam"
+    );
+    await expect(
+      moningo.connect(alice).startLevelTest({ value: 1n })
+    ).to.be.revertedWithCustomError(moningo, "WrongFee");
     const poolBefore = await moningo.rewardPool();
-    await expect(moningo.connect(alice).startLevelTest({ value: FEE })).to.emit(moningo, "LevelTestStarted");
+    await expect(moningo.connect(alice).startLevelTest({ value: FEE })).to.emit(
+      moningo,
+      "LevelTestStarted"
+    );
     expect(await moningo.rewardPool()).to.equal(poolBefore + FEE);
 
-    await expect(moningo.connect(alice).claimCertificate(4, await signExam(moningo, verifier, alice, 3)))
-      .to.be.revertedWithCustomError(moningo, "BadSignature");
+    await expect(
+      moningo.connect(alice).claimCertificate(4, await signExam(moningo, verifier, alice, 3))
+    ).to.be.revertedWithCustomError(moningo, "BadSignature");
     const sig = await signExam(moningo, verifier, alice, 3);
-    await expect(moningo.connect(alice).claimCertificate(3, sig)).to.emit(moningo, "CertificateMinted").withArgs(alice.address, 1, 3);
-    await expect(moningo.connect(alice).claimCertificate(3, sig)).to.be.revertedWithCustomError(moningo, "NoPaidExam");
+    await expect(moningo.connect(alice).claimCertificate(3, sig))
+      .to.emit(moningo, "CertificateMinted")
+      .withArgs(alice.address, 1, 3);
+    await expect(moningo.connect(alice).claimCertificate(3, sig)).to.be.revertedWithCustomError(
+      moningo,
+      "NoPaidExam"
+    );
     expect(await moningo.ownerOf(1)).to.equal(alice.address);
     expect(await moningo.levelOf(alice.address)).to.equal(3);
 
-    const meta = JSON.parse(Buffer.from((await moningo.tokenURI(1)).split(",")[1], "base64").toString());
+    const meta = JSON.parse(
+      Buffer.from((await moningo.tokenURI(1)).split(",")[1], "base64").toString()
+    );
     expect(meta.name).to.equal("Moningo Certificate #1");
     expect(meta.attributes[0].value).to.equal("B1");
     expect(meta.image).to.match(/^data:image\/svg\+xml;base64,/);
 
-    await expect(moningo.connect(alice).transferFrom(alice.address, bob.address, 1)).to.be.revertedWithCustomError(moningo, "Soulbound");
+    await expect(
+      moningo.connect(alice).transferFrom(alice.address, bob.address, 1)
+    ).to.be.revertedWithCustomError(moningo, "Soulbound");
   });
 
   it("rejects out-of-range levels", async () => {
     const { moningo, verifier, alice } = await loadFixture(deploy);
     await moningo.connect(alice).startLevelTest({ value: FEE });
-    await expect(moningo.connect(alice).claimCertificate(6, await signExam(moningo, verifier, alice, 6))).to.be.revertedWithCustomError(moningo, "BadLevel");
+    await expect(
+      moningo.connect(alice).claimCertificate(6, await signExam(moningo, verifier, alice, 6))
+    ).to.be.revertedWithCustomError(moningo, "BadLevel");
   });
 
   it("owner can only withdraw surplus, never user stakes", async () => {
     const { moningo, owner, alice } = await loadFixture(deploy);
     await moningo.connect(alice).startStreak({ value: STAKE });
-    await expect(moningo.connect(owner).withdrawPool(ethers.parseEther("1.01"))).to.be.revertedWith("exceeds pool");
-    await expect(moningo.connect(owner).withdrawPool(ethers.parseEther("1"))).to.changeEtherBalance(owner, ethers.parseEther("1"));
-    await expect(moningo.connect(alice).withdrawPool(1)).to.be.revertedWithCustomError(moningo, "OwnableUnauthorizedAccount");
+    await expect(moningo.connect(owner).withdrawPool(ethers.parseEther("1.01"))).to.be.revertedWith(
+      "exceeds pool"
+    );
+    await expect(moningo.connect(owner).withdrawPool(ethers.parseEther("1"))).to.changeEtherBalance(
+      owner,
+      ethers.parseEther("1")
+    );
+    await expect(moningo.connect(alice).withdrawPool(1)).to.be.revertedWithCustomError(
+      moningo,
+      "OwnableUnauthorizedAccount"
+    );
   });
 });

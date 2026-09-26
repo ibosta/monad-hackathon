@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 /// @title MoningoPractice - level map economy: buy energy with MON, earn MON at checkpoints.
 /// @notice Energy itself lives off-chain (regenerates over time); this contract takes payments for
@@ -48,7 +48,7 @@ contract MoningoPractice is Ownable {
         if (ECDSA.recover(digest, signature) != verifier) revert BadSignature();
         if (address(this).balance < CHECKPOINT_REWARD) revert PoolEmpty();
         checkpointClaimed[msg.sender][level] = true;
-        (bool ok,) = msg.sender.call{value: CHECKPOINT_REWARD}("");
+        (bool ok, ) = msg.sender.call{ value: CHECKPOINT_REWARD }("");
         if (!ok) revert TransferFailed();
         emit CheckpointClaimed(msg.sender, level, CHECKPOINT_REWARD);
     }
@@ -62,7 +62,7 @@ contract MoningoPractice is Ownable {
     }
 
     function withdraw(uint256 amount) external onlyOwner {
-        (bool ok,) = owner().call{value: amount}("");
+        (bool ok, ) = owner().call{ value: amount }("");
         if (!ok) revert TransferFailed();
     }
 }

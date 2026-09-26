@@ -11,7 +11,9 @@ describe("MoningoStreakRewards", () => {
     const completeDays = async (user, n) => {
       for (let i = 0; i < n; i++) {
         await moningo.connect(user).startStreak({ value: ethers.parseEther("0.1") });
-        const sig = await verifier.signMessage(ethers.getBytes(await moningo.taskDigest(user.address)));
+        const sig = await verifier.signMessage(
+          ethers.getBytes(await moningo.taskDigest(user.address))
+        );
         await moningo.connect(user).completeEnglishTask(sig);
       }
     };
@@ -27,12 +29,26 @@ describe("MoningoStreakRewards", () => {
 
   it("pays a milestone once the on-chain streak reaches it, only once", async () => {
     const { tree, alice, completeDays } = await loadFixture(deploy);
-    await expect(tree.connect(alice).claim(1)).to.be.revertedWithCustomError(tree, "StreakTooShort");
+    await expect(tree.connect(alice).claim(1)).to.be.revertedWithCustomError(
+      tree,
+      "StreakTooShort"
+    );
     await completeDays(alice, 3);
-    await expect(tree.connect(alice).claim(1)).to.changeEtherBalance(alice, ethers.parseEther("0.005"));
-    await expect(tree.connect(alice).claim(3)).to.emit(tree, "MilestoneClaimed").withArgs(alice.address, 3, ethers.parseEther("0.01"));
-    await expect(tree.connect(alice).claim(3)).to.be.revertedWithCustomError(tree, "AlreadyClaimed");
-    await expect(tree.connect(alice).claim(5)).to.be.revertedWithCustomError(tree, "StreakTooShort");
+    await expect(tree.connect(alice).claim(1)).to.changeEtherBalance(
+      alice,
+      ethers.parseEther("0.005")
+    );
+    await expect(tree.connect(alice).claim(3))
+      .to.emit(tree, "MilestoneClaimed")
+      .withArgs(alice.address, 3, ethers.parseEther("0.01"));
+    await expect(tree.connect(alice).claim(3)).to.be.revertedWithCustomError(
+      tree,
+      "AlreadyClaimed"
+    );
+    await expect(tree.connect(alice).claim(5)).to.be.revertedWithCustomError(
+      tree,
+      "StreakTooShort"
+    );
   });
 
   it("rejects non-milestone days and empty pools", async () => {

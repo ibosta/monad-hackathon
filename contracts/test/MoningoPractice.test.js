@@ -18,28 +18,50 @@ describe("MoningoPractice", () => {
       .to.emit(practice, "EnergyPurchased")
       .withArgs(alice.address, 2, 10);
     expect(await practice.energyBought(alice.address)).to.equal(10);
-    await expect(practice.connect(alice).buyEnergy(1, { value: ethers.parseEther("0.02") })).to.be.revertedWithCustomError(practice, "WrongPayment");
-    await expect(practice.connect(alice).buyEnergy(0, { value: 0 })).to.be.revertedWithCustomError(practice, "WrongPayment");
+    await expect(
+      practice.connect(alice).buyEnergy(1, { value: ethers.parseEther("0.02") })
+    ).to.be.revertedWithCustomError(practice, "WrongPayment");
+    await expect(practice.connect(alice).buyEnergy(0, { value: 0 })).to.be.revertedWithCustomError(
+      practice,
+      "WrongPayment"
+    );
   });
 
   it("pays a signed checkpoint reward exactly once", async () => {
     const { practice, alice, sign } = await loadFixture(deploy);
     const sig = await sign(alice, 10);
-    await expect(practice.connect(alice).claimCheckpoint(10, sig)).to.changeEtherBalance(alice, ethers.parseEther("0.02"));
-    await expect(practice.connect(alice).claimCheckpoint(10, sig)).to.be.revertedWithCustomError(practice, "AlreadyClaimed");
+    await expect(practice.connect(alice).claimCheckpoint(10, sig)).to.changeEtherBalance(
+      alice,
+      ethers.parseEther("0.02")
+    );
+    await expect(practice.connect(alice).claimCheckpoint(10, sig)).to.be.revertedWithCustomError(
+      practice,
+      "AlreadyClaimed"
+    );
   });
 
   it("rejects non-checkpoint levels and forged signatures", async () => {
     const { practice, alice, sign } = await loadFixture(deploy);
-    await expect(practice.connect(alice).claimCheckpoint(7, await sign(alice, 7))).to.be.revertedWithCustomError(practice, "BadCheckpoint");
-    await expect(practice.connect(alice).claimCheckpoint(20, await sign(alice, 20, alice))).to.be.revertedWithCustomError(practice, "BadSignature");
-    await expect(practice.connect(alice).claimCheckpoint(20, await sign(alice, 10))).to.be.revertedWithCustomError(practice, "BadSignature");
+    await expect(
+      practice.connect(alice).claimCheckpoint(7, await sign(alice, 7))
+    ).to.be.revertedWithCustomError(practice, "BadCheckpoint");
+    await expect(
+      practice.connect(alice).claimCheckpoint(20, await sign(alice, 20, alice))
+    ).to.be.revertedWithCustomError(practice, "BadSignature");
+    await expect(
+      practice.connect(alice).claimCheckpoint(20, await sign(alice, 10))
+    ).to.be.revertedWithCustomError(practice, "BadSignature");
   });
 
   it("reverts when the pool is empty", async () => {
     const [, verifier, alice] = await ethers.getSigners();
     const practice = await ethers.deployContract("MoningoPractice", [verifier.address]);
-    const sig = await verifier.signMessage(ethers.getBytes(await practice.checkpointDigest(alice.address, 10)));
-    await expect(practice.connect(alice).claimCheckpoint(10, sig)).to.be.revertedWithCustomError(practice, "PoolEmpty");
+    const sig = await verifier.signMessage(
+      ethers.getBytes(await practice.checkpointDigest(alice.address, 10))
+    );
+    await expect(practice.connect(alice).claimCheckpoint(10, sig)).to.be.revertedWithCustomError(
+      practice,
+      "PoolEmpty"
+    );
   });
 });

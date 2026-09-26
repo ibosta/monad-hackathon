@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { Base64 } from "@openzeppelin/contracts/utils/Base64.sol";
+import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 /// @title Moningo - stake MON, learn English daily, earn MON and an NFT certificate.
 /// @notice Daily: startStreak (stake 0.1 MON) -> lessons -> completeEnglishTask (stake back + reward).
@@ -95,7 +95,7 @@ contract Moningo is ERC721, Ownable {
         bool rewarded = rewardPool() >= REWARD + DAILY_STAKE; // pool computed before payout leaves
         if (rewarded) payout += REWARD;
 
-        (bool ok,) = msg.sender.call{value: payout}("");
+        (bool ok, ) = msg.sender.call{ value: payout }("");
         if (!ok) revert TransferFailed();
 
         emit TaskCompleted(msg.sender, newStreak);
@@ -144,7 +144,9 @@ contract Moningo is ERC721, Ownable {
         return address(this).balance - totalLocked;
     }
 
-    function getUser(address user)
+    function getUser(
+        address user
+    )
         external
         view
         returns (uint256 streak, uint256 stakedAt, bool active, uint256 certificateId, uint8 level, bool examPaid)
@@ -183,10 +185,10 @@ contract Moningo is ERC721, Ownable {
             lvl,
             '</text><text x="300" y="290" font-family="Arial" font-size="16" fill="#fff" text-anchor="middle">CEFR level verified on Monad | ',
             streak,
-            ' daily lessons</text>',
+            " daily lessons</text>",
             '<text x="300" y="340" font-family="monospace" font-size="13" fill="#836EF9" text-anchor="middle">',
             addr,
-            '</text></svg>'
+            "</text></svg>"
         );
         string memory json = string.concat(
             '{"name":"Moningo Certificate #',
@@ -220,7 +222,7 @@ contract Moningo is ERC721, Ownable {
     /// @notice Withdraw only surplus pool funds; user stakes are never touchable.
     function withdrawPool(uint256 amount) external onlyOwner {
         require(amount <= rewardPool(), "exceeds pool");
-        (bool ok,) = owner().call{value: amount}("");
+        (bool ok, ) = owner().call{ value: amount }("");
         if (!ok) revert TransferFailed();
     }
 }

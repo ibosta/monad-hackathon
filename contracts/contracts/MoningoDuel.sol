@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title MoningoDuel - 1v1 English quiz duels with a MON pot.
 /// @notice Both players stake STAKE into the same match; the backend referee reports the winner,
@@ -116,7 +116,7 @@ contract MoningoDuel is Ownable {
     }
 
     function _pay(address to, uint256 amount) private {
-        (bool ok,) = to.call{value: amount}("");
+        (bool ok, ) = to.call{ value: amount }("");
         if (!ok) revert TransferFailed();
     }
 }
