@@ -20,8 +20,11 @@ const verifier = /^0x[0-9a-fA-F]{64}$/.test(process.env.VERIFIER_PRIVATE_KEY || 
   ? privateKeyToAccount(process.env.VERIFIER_PRIVATE_KEY)
   : null;
 
+// CHAIN_OFFLINE=1 disables all RPC reads (unit tests / CI without network access).
+const OFFLINE = process.env.CHAIN_OFFLINE === "1";
+
 function ready() {
-  return Boolean(CONTRACT_ADDRESS && isAddress(CONTRACT_ADDRESS));
+  return !OFFLINE && Boolean(CONTRACT_ADDRESS && isAddress(CONTRACT_ADDRESS));
 }
 
 async function getOnchainUser(address) {
@@ -44,7 +47,11 @@ async function getOnchainUser(address) {
 
 async function getPool() {
   if (!ready()) return null;
-  const pool = await client.readContract({ address: CONTRACT_ADDRESS, abi, functionName: "rewardPool" });
+  const pool = await client.readContract({
+    address: CONTRACT_ADDRESS,
+    abi,
+    functionName: "rewardPool",
+  });
   return pool.toString();
 }
 
@@ -73,7 +80,13 @@ async function signExam(address, level) {
 function decodeTokenURI(uri) {
   const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
   const attr = Object.fromEntries((json.attributes || []).map((a) => [a.trait_type, a.value]));
-  return { name: json.name, description: json.description, image: json.image, level: attr.Level, dailyLessons: attr["Daily lessons"] };
+  return {
+    name: json.name,
+    description: json.description,
+    image: json.image,
+    level: attr.Level,
+    dailyLessons: attr["Daily lessons"],
+  };
 }
 
 /** All certificate NFTs owned by `owner` (token ids are sequential, so a multicall over ownerOf is enough). */
@@ -82,23 +95,42 @@ const certCache = new Map();
 
 async function getCertificates(owner) {
   if (!ready()) return [];
-  const next = Number(await client.readContract({ address: CONTRACT_ADDRESS, abi, functionName: "nextTokenId" }));
+  const next = Number(
+    await client.readContract({ address: CONTRACT_ADDRESS, abi, functionName: "nextTokenId" })
+  );
   const missing = [];
   for (let id = 1; id < next; id++) if (!certCache.has(id)) missing.push(BigInt(id));
   if (missing.length) {
     const owners = await client.multicall({
-      contracts: missing.map((id) => ({ address: CONTRACT_ADDRESS, abi, functionName: "ownerOf", args: [id] })),
+      contracts: missing.map((id) => ({
+        address: CONTRACT_ADDRESS,
+        abi,
+        functionName: "ownerOf",
+        args: [id],
+      })),
       allowFailure: false,
     });
     const uris = await client.multicall({
-      contracts: missing.map((id) => ({ address: CONTRACT_ADDRESS, abi, functionName: "tokenURI", args: [id] })),
+      contracts: missing.map((id) => ({
+        address: CONTRACT_ADDRESS,
+        abi,
+        functionName: "tokenURI",
+        args: [id],
+      })),
       allowFailure: false,
     });
     missing.forEach((id, i) =>
-      certCache.set(Number(id), { tokenId: Number(id), owner: owners[i], contract: CONTRACT_ADDRESS, ...decodeTokenURI(uris[i]) })
+      certCache.set(Number(id), {
+        tokenId: Number(id),
+        owner: owners[i],
+        contract: CONTRACT_ADDRESS,
+        ...decodeTokenURI(uris[i]),
+      })
     );
   }
-  return [...certCache.values()].filter((c) => c.owner.toLowerCase() === owner.toLowerCase()).sort((a, b) => b.tokenId - a.tokenId);
+  return [...certCache.values()]
+    .filter((c) => c.owner.toLowerCase() === owner.toLowerCase())
+    .sort((a, b) => b.tokenId - a.tokenId);
 }
 
 async function getCertificate(tokenId) {

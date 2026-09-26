@@ -6,8 +6,8 @@
   "scripts": {
     "start": "prisma db push --skip-generate && node src/index.js",
     "dev": "prisma db push && node --watch src/index.js",
-    "test": "node --test test/",
-    "lint": "eslint \"src/**/*.js\"",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "lint": "eslint \"src/**/*.js\" \"test/**/*.js\"",
     "format": "prettier --write \"src/**/*.js\" \"*.json\"",
     "format:check": "prettier --check \"src/**/*.js\" \"*.json\""
   },

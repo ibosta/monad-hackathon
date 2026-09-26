@@ -28,7 +28,10 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 /** Current and best consecutive duel wins (a loss or draw breaks the streak). */
 async function duelWinStreaks(prisma, address) {
-  const rows = await prisma.duelResult.findMany({ where: { OR: [{ p1: address }, { p2: address }] }, orderBy: { createdAt: "asc" } });
+  const rows = await prisma.duelResult.findMany({
+    where: { OR: [{ p1: address }, { p2: address }] },
+    orderBy: { createdAt: "asc" },
+  });
   let current = 0;
   let best = 0;
   for (const r of rows) {
@@ -40,13 +43,19 @@ async function duelWinStreaks(prisma, address) {
 
 async function duelsToday(prisma, address) {
   const start = new Date(`${today()}T00:00:00.000Z`);
-  return prisma.duelResult.count({ where: { OR: [{ p1: address }, { p2: address }], createdAt: { gte: start } } });
+  return prisma.duelResult.count({
+    where: { OR: [{ p1: address }, { p2: address }], createdAt: { gte: start } },
+  });
 }
 
 let milestoneCache = null;
 async function milestones() {
   if (milestoneCache || !streak.address) return milestoneCache ?? [];
-  const [days, rewards] = await client.readContract({ address: streak.address, abi: streak.abi, functionName: "milestones" });
+  const [days, rewards] = await client.readContract({
+    address: streak.address,
+    abi: streak.abi,
+    functionName: "milestones",
+  });
   milestoneCache = days.map((d, i) => ({ day: Number(d), reward: formatEther(rewards[i]) }));
   return milestoneCache;
 }
@@ -56,49 +65,103 @@ function achievementsRouter(prisma) {
   const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
   const addr = (v) => (isAddress(v || "") ? getAddress(v) : null);
 
-  r.get("/streak-tree/:address", wrap(async (req, res) => {
-    const address = addr(req.params.address);
-    if (!address) return res.status(400).json({ message: "Invalid address" });
-    const [ms, onchain] = await Promise.all([milestones(), getOnchainUser(address).catch(() => null)]);
-    const claimed = ms.length
-      ? await client.multicall({
-          contracts: ms.map((m) => ({ address: streak.address, abi: streak.abi, functionName: "claimed", args: [address, BigInt(m.day)] })),
-          allowFailure: true,
-        })
-      : [];
-    const current = onchain?.streak ?? 0;
-    const nodes = ms.map((m, i) => ({ ...m, reached: current >= m.day, claimed: claimed[i]?.status === "success" && claimed[i].result }));
-    const next = nodes.find((n) => !n.reached) ?? null;
-    res.json({ contract: streak.address, streak: current, dailyReward: "0.05", milestones: nodes, next, daysToNext: next ? next.day - current : 0 });
-  }));
+  r.get(
+    "/streak-tree/:address",
+    wrap(async (req, res) => {
+      const address = addr(req.params.address);
+      if (!address) return res.status(400).json({ message: "Invalid address" });
+      const [ms, onchain] = await Promise.all([
+        milestones(),
+        getOnchainUser(address).catch(() => null),
+      ]);
+      const claimed = ms.length
+        ? await client.multicall({
+            contracts: ms.map((m) => ({
+              address: streak.address,
+              abi: streak.abi,
+              functionName: "claimed",
+              args: [address, BigInt(m.day)],
+            })),
+            allowFailure: true,
+          })
+        : [];
+      const current = onchain?.streak ?? 0;
+      const nodes = ms.map((m, i) => ({
+        ...m,
+        reached: current >= m.day,
+        claimed: claimed[i]?.status === "success" && claimed[i].result,
+      }));
+      const next = nodes.find((n) => !n.reached) ?? null;
+      res.json({
+        contract: streak.address,
+        streak: current,
+        dailyReward: "0.05",
+        milestones: nodes,
+        next,
+        daysToNext: next ? next.day - current : 0,
+      });
+    })
+  );
 
-  r.get("/badges/:address", wrap(async (req, res) => {
-    const address = addr(req.params.address);
-    if (!address) return res.status(400).json({ message: "Invalid address" });
-    const [onchain, duel] = await Promise.all([getOnchainUser(address).catch(() => null), duelWinStreaks(prisma, address)]);
-    const owned = badges.address
-      ? await client.multicall({
-          contracts: BADGES.map((b) => ({ address: badges.address, abi: badges.abi, functionName: "badgeToken", args: [address, BigInt(b.id)] })),
-          allowFailure: true,
-        })
-      : [];
-    const list = BADGES.map((b, i) => {
-      const progress = b.kind === "streak" ? onchain?.streak ?? 0 : duel.best;
-      const tokenId = owned[i]?.status === "success" ? Number(owned[i].result) : 0;
-      return { ...b, progress, earned: progress >= b.threshold, tokenId };
-    });
-    res.json({ contract: badges.address, streak: onchain?.streak ?? 0, duelWinStreak: duel.current, bestDuelWinStreak: duel.best, badges: list });
-  }));
+  r.get(
+    "/badges/:address",
+    wrap(async (req, res) => {
+      const address = addr(req.params.address);
+      if (!address) return res.status(400).json({ message: "Invalid address" });
+      const [onchain, duel] = await Promise.all([
+        getOnchainUser(address).catch(() => null),
+        duelWinStreaks(prisma, address),
+      ]);
+      const owned = badges.address
+        ? await client.multicall({
+            contracts: BADGES.map((b) => ({
+              address: badges.address,
+              abi: badges.abi,
+              functionName: "badgeToken",
+              args: [address, BigInt(b.id)],
+            })),
+            allowFailure: true,
+          })
+        : [];
+      const list = BADGES.map((b, i) => {
+        const progress = b.kind === "streak" ? (onchain?.streak ?? 0) : duel.best;
+        const tokenId = owned[i]?.status === "success" ? Number(owned[i].result) : 0;
+        return { ...b, progress, earned: progress >= b.threshold, tokenId };
+      });
+      res.json({
+        contract: badges.address,
+        streak: onchain?.streak ?? 0,
+        duelWinStreak: duel.current,
+        bestDuelWinStreak: duel.best,
+        badges: list,
+      });
+    })
+  );
 
-  r.post("/badges/signature", wrap(async (req, res) => {
-    const address = addr(req.body?.address);
-    const badge = BADGES.find((b) => b.id === Number(req.body?.id));
-    if (!address || !badge || badge.kind !== "duel" || !verifier || !badges.address) return res.status(400).json({ message: "Invalid badge" });
-    const { best } = await duelWinStreaks(prisma, address);
-    if (best < badge.threshold) return res.status(403).json({ message: `Win ${badge.threshold} duels in a row first (best: ${best})` });
-    const digest = await client.readContract({ address: badges.address, abi: badges.abi, functionName: "badgeDigest", args: [address, BigInt(badge.id)] });
-    res.json({ success: true, signature: await verifier.signMessage({ message: { raw: digest } }) });
-  }));
+  r.post(
+    "/badges/signature",
+    wrap(async (req, res) => {
+      const address = addr(req.body?.address);
+      const badge = BADGES.find((b) => b.id === Number(req.body?.id));
+      if (!address || !badge || badge.kind !== "duel" || !verifier || !badges.address)
+        return res.status(400).json({ message: "Invalid badge" });
+      const { best } = await duelWinStreaks(prisma, address);
+      if (best < badge.threshold)
+        return res
+          .status(403)
+          .json({ message: `Win ${badge.threshold} duels in a row first (best: ${best})` });
+      const digest = await client.readContract({
+        address: badges.address,
+        abi: badges.abi,
+        functionName: "badgeDigest",
+        args: [address, BigInt(badge.id)],
+      });
+      res.json({
+        success: true,
+        signature: await verifier.signMessage({ message: { raw: digest } }),
+      });
+    })
+  );
 
   return r;
 }

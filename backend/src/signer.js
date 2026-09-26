@@ -12,7 +12,13 @@ const load = (name) => {
 const duel = load("duel");
 const practice = load("practice");
 
-const wallet = verifier ? createWalletClient({ account: verifier, chain: CHAIN, transport: http(RPC_URL, { retryCount: 4 }) }) : null;
+const wallet = verifier
+  ? createWalletClient({
+      account: verifier,
+      chain: CHAIN,
+      transport: http(RPC_URL, { retryCount: 4 }),
+    })
+  : null;
 
 let queue = Promise.resolve();
 

@@ -52,7 +52,9 @@ function attachDuelServer(server, prisma) {
       state: "joining",
       joined: new Set(),
       scores: { [a]: 0, [b]: 0 },
-      questions: shuffle(BANK).slice(0, ROUNDS).map((q) => ({ ...q, options: shuffle(q.options) })),
+      questions: shuffle(BANK)
+        .slice(0, ROUNDS)
+        .map((q) => ({ ...q, options: shuffle(q.options) })),
       round: -1,
       answers: {},
       createdAt: Date.now(),
@@ -86,7 +88,14 @@ function attachDuelServer(server, prisma) {
   async function botJoin(m) {
     const human = m.players.find((p) => p !== account.address);
     try {
-      await send({ address: duel.address, abi: duel.abi, functionName: "join", args: [m.nonce, human], value: STAKE_WEI, gas: GAS.join });
+      await send({
+        address: duel.address,
+        abi: duel.abi,
+        functionName: "join",
+        args: [m.nonce, human],
+        value: STAKE_WEI,
+        gas: GAS.join,
+      });
     } catch (e) {
       console.error("[duel] bot join failed", e.shortMessage || e.message);
       endWithoutGame(m, "Mona could not join right now. Try matching with a human.");
@@ -97,7 +106,12 @@ function attachDuelServer(server, prisma) {
     const timer = setInterval(async () => {
       if (m.state !== "joining") return clearInterval(timer);
       try {
-        const [p1, p2] = await client.readContract({ address: duel.address, abi: duel.abi, functionName: "matches", args: [m.matchId] });
+        const [p1, p2] = await client.readContract({
+          address: duel.address,
+          abi: duel.abi,
+          functionName: "matches",
+          args: [m.matchId],
+        });
         const zero = "0x0000000000000000000000000000000000000000";
         const now = new Set([p1, p2].filter((x) => x !== zero).map(getAddress));
         for (const p of now) {
@@ -124,7 +138,13 @@ function attachDuelServer(server, prisma) {
     let txHash = null;
     if (m.joined.size > 0) {
       try {
-        ({ hash: txHash } = await send({ address: duel.address, abi: duel.abi, functionName: "cancel", args: [m.matchId], gas: GAS.cancel }));
+        ({ hash: txHash } = await send({
+          address: duel.address,
+          abi: duel.abi,
+          functionName: "cancel",
+          args: [m.matchId],
+          gas: GAS.cancel,
+        }));
       } catch (e) {
         console.error("[duel] cancel failed", e.shortMessage || e.message);
       }
@@ -193,7 +213,9 @@ function attachDuelServer(server, prisma) {
         i: m.round,
         answer: q.answer,
         you: mine ?? { option: null, correct: false, points: 0 },
-        opponent: opp ? { correct: opp.correct, points: opp.points } : { correct: false, points: 0 },
+        opponent: opp
+          ? { correct: opp.correct, points: opp.points }
+          : { correct: false, points: 0 },
         scores: m.scores,
       });
     }
@@ -218,9 +240,27 @@ function attachDuelServer(server, prisma) {
     } catch (e) {
       console.error("[duel] settle failed", e.shortMessage || e.message);
     }
-    broadcast(m, { t: "result", winner, draw: !winner, scores: m.scores, payout: winner ? "0.99" : "0.5", txHash });
+    broadcast(m, {
+      t: "result",
+      winner,
+      draw: !winner,
+      scores: m.scores,
+      payout: winner ? "0.99" : "0.5",
+      txHash,
+    });
     await prisma.duelResult
-      .create({ data: { matchId: m.matchId, p1: a, p2: b, winner, scoreP1: m.scores[a], scoreP2: m.scores[b], txHash, vsBot: m.vsBot } })
+      .create({
+        data: {
+          matchId: m.matchId,
+          p1: a,
+          p2: b,
+          winner,
+          scoreP1: m.scores[a],
+          scoreP2: m.scores[b],
+          txHash,
+          vsBot: m.vsBot,
+        },
+      })
       .catch((e) => console.error("[duel] save", e.message));
     cleanup(m);
   }
@@ -237,7 +277,13 @@ function attachDuelServer(server, prisma) {
       if (!prisma) return false;
       const n = await duelsToday(prisma, addr);
       if (n < DUELS_PER_DAY) return false;
-      ws.send(JSON.stringify({ t: "error", code: "DAILY_LIMIT", message: `Daily duel limit reached (${n}/${DUELS_PER_DAY}). Come back tomorrow!` }));
+      ws.send(
+        JSON.stringify({
+          t: "error",
+          code: "DAILY_LIMIT",
+          message: `Daily duel limit reached (${n}/${DUELS_PER_DAY}). Come back tomorrow!`,
+        })
+      );
       return true;
     };
     ws.on("message", async (raw) => {
@@ -248,11 +294,19 @@ function attachDuelServer(server, prisma) {
         return;
       }
       if (msg.t === "hello") {
-        if (!isAddress(msg.address || "")) return ws.send(JSON.stringify({ t: "error", message: "Invalid address" }));
+        if (!isAddress(msg.address || ""))
+          return ws.send(JSON.stringify({ t: "error", message: "Invalid address" }));
         me = getAddress(msg.address);
         sockets.set(me, ws);
         const current = matches.get(byPlayer.get(me));
-        ws.send(JSON.stringify({ t: "welcome", address: me, inMatch: Boolean(current), online: sockets.size }));
+        ws.send(
+          JSON.stringify({
+            t: "welcome",
+            address: me,
+            inMatch: Boolean(current),
+            online: sockets.size,
+          })
+        );
         return;
       }
       if (!me) return;
@@ -274,7 +328,8 @@ function attachDuelServer(server, prisma) {
       } else if (msg.t === "leave") {
         if (waiting === me) waiting = null;
       } else if (msg.t === "bot") {
-        if (!account || !duel.address) return ws.send(JSON.stringify({ t: "error", message: "Bot unavailable" }));
+        if (!account || !duel.address)
+          return ws.send(JSON.stringify({ t: "error", message: "Bot unavailable" }));
         if (waiting === me) waiting = null;
         createMatch(me, account.address, true);
       } else if (msg.t === "answer") {
