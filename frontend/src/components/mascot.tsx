@@ -56,7 +56,7 @@ export function Mascot({
       </g>
 
       {/* wings */}
-      <g fill="url(#mona-wing)">
+      <g fill="url(#mona-wing)" className={wingsUp ? "mona-flap" : "mona-idle-wing"}>
         <path
           d={wingsUp ? "M40 98 C10 70 12 40 26 34 C40 60 52 76 58 96 Z" : "M38 104 C18 118 20 146 36 150 C44 132 52 120 58 108 Z"}
         />
@@ -81,7 +81,7 @@ export function Mascot({
           <path d="M110 84 Q122 94 134 84" />
         </g>
       ) : (
-        <g>
+        <g className="mona-blink">
           <circle cx="78" cy="84" r="17" fill="#fff" />
           <circle cx="122" cy="84" r="17" fill="#fff" />
           <circle cx={mood === "think" ? 84 : 80} cy={mood === "think" ? 78 : 86} r="9" fill="#200052" />
