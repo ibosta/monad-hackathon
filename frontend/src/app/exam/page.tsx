@@ -9,6 +9,7 @@ import { Confetti, spring } from "@/components/motion";
 import { QuestionCard } from "@/components/question-card";
 import { withTxToast } from "@/lib/tx-toast";
 import { Mascot } from "@/components/mascot";
+import { LoadError } from "@/components/load-error";
 import { Certificate } from "@/components/certificate";
 import { TxBadge } from "@/components/tx-badge";
 import { WalletButton } from "@/components/wallet-button";
@@ -32,7 +33,11 @@ export default function ExamPage() {
   const send = useMoningoTx();
   const { user, refetch } = useOnchainUser();
   // Each fetch draws a fresh random exam bound to this wallet on the server.
-  const { data: exam, refetch: drawExam } = useQuery({
+  const {
+    data: exam,
+    refetch: drawExam,
+    isError: examError,
+  } = useQuery({
     queryKey: ["level-test", address],
     queryFn: () => api.levelTest(address!),
     enabled: Boolean(address),
@@ -104,6 +109,7 @@ export default function ExamPage() {
       </Panel>
     );
   }
+  if (examError && !exam) return <LoadError what="the level test" onRetry={() => drawExam()} />;
   if (!exam)
     return (
       <Panel>

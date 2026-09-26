@@ -224,8 +224,8 @@ export default function PracticePage() {
           <Mascot size={96} mood="sad" />
           <h2 className="metal-text text-2xl font-black">Leave level {play.level}?</h2>
           <p className="text-monad-100/85">
-            The <b className="text-yellow-300">1 ⚡</b> you spent to start this level won&apos;t come back, and your answers
-            so far will be lost.
+            The <b className="text-yellow-300">1 ⚡</b> you spent to start this level won&apos;t
+            come back, and your answers so far will be lost.
           </p>
           <button onClick={() => setConfirmQuit(false)} className="btn-green w-full">
             Keep playing

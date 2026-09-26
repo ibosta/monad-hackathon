@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { Flame, Gift, Check, Lock, Loader2 } from "lucide-react";
 import { Mascot } from "@/components/mascot";
+import { LoadError } from "@/components/load-error";
 import { Modal } from "@/components/modal";
 import { Confetti, CountUp, spring } from "@/components/motion";
 import { WalletButton } from "@/components/wallet-button";
@@ -25,7 +26,11 @@ export default function StreakPage() {
   useEffect(() => setMounted(true), []);
   const { address, isConnected } = useAccount();
   const send = useChainTx();
-  const { data: tree, refetch } = useQuery({
+  const {
+    data: tree,
+    refetch,
+    isError,
+  } = useQuery({
     queryKey: ["streak-tree", address],
     queryFn: () => api.streakTree(address!),
     enabled: Boolean(address),
@@ -44,6 +49,7 @@ export default function StreakPage() {
       </section>
     );
   }
+  if (isError && !tree) return <LoadError what="your streak tree" onRetry={() => refetch()} />;
   if (!tree)
     return (
       <div className="flex justify-center py-20">

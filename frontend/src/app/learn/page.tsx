@@ -112,10 +112,17 @@ export default function LearnPage() {
           description: `Settled on Monad in ${(r.ms / 1000).toFixed(2)}s · streak ${r.streak ?? todayStreak}`,
         });
       } catch (e) {
-        toast.error("Claim failed", { id, description: e instanceof Error ? e.message : "Try again" });
+        toast.error("Claim failed", {
+          id,
+          description: e instanceof Error ? e.message : "Try again",
+        });
         throw e;
       }
-      await Promise.all([refetchOnchain(), refetchMe(), qc.invalidateQueries({ queryKey: ["config"] })]);
+      await Promise.all([
+        refetchOnchain(),
+        refetchMe(),
+        qc.invalidateQueries({ queryKey: ["config"] }),
+      ]);
     });
 
   if (!mounted) return null;
