@@ -20,3 +20,14 @@ tsconfig.tsbuildinfo
 .DS_Store
 *.log
 coverage/
+
+# Generated contract artifacts / ABIs
+backend/src/contract/
+frontend/src/lib/moningo-abi.ts
+frontend/src/lib/games-abi.ts
+typechain-types/
+
+# Hand-written docs & agent skills (not code)
+.claude/
+.roo/
+*.md

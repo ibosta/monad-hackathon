@@ -1,74 +1,61 @@
 name: Deploy to Monad Testnet
 
-# Manual workflow: compiles & deploys the Moningo contract to Monad Testnet,
-# funds the verifier, and uploads the contract address as an artifact.
+# Manual: tests, then deploys the selected contracts to Monad Testnet and uploads the
+# generated address/ABI files (backend/src/contract/*.json) as an artifact.
 on:
   workflow_dispatch:
     inputs:
+      target:
+        description: "What to deploy"
+        type: choice
+        options: [games, streak, badges, moningo, all]
+        default: games
       confirm:
-        description: "Type 'deploy' to confirm deployment to Monad Testnet"
+        description: "Type 'deploy' to confirm"
         required: true
         default: ""
 
 jobs:
   deploy:
-    name: Deploy Moningo contract
+    name: Deploy (${{ github.event.inputs.target }})
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.confirm == 'deploy' }}
+    environment: monad-testnet
     defaults:
       run:
         working-directory: contracts
+    env:
+      PRIVATE_KEY: ${{ secrets.MONAD_DEPLOYER_PRIVATE_KEY }}
+      VERIFIER_ADDRESS: ${{ secrets.MONAD_VERIFIER_ADDRESS }}
+      MONAD_RPC_URL: ${{ secrets.MONAD_RPC_URL || 'https://testnet-rpc.monad.xyz' }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: contracts/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Compile contracts
-        run: npm run compile
-
-      - name: Verify secrets present
+      - run: npm ci
+      - name: Check secrets
         run: |
-          if [ -z "${{ secrets.MONAD_DEPLOYER_PRIVATE_KEY }}" ]; then
-            echo "::error::MONAD_DEPLOYER_PRIVATE_KEY secret is missing"
-            exit 1
-          fi
-          if [ -z "${{ secrets.MONAD_VERIFIER_PRIVATE_KEY }}" ]; then
-            echo "::error::MONAD_VERIFIER_PRIVATE_KEY secret is missing"
-            exit 1
-          fi
-
-      - name: Deploy contract
+          if [ -z "$PRIVATE_KEY" ]; then echo "::error::MONAD_DEPLOYER_PRIVATE_KEY secret is missing"; exit 1; fi
+      - name: Test before deploying
+        run: npm test
+      - name: Deploy Moningo (daily + exam + certificates)
+        if: ${{ contains(fromJSON('["moningo","all"]'), github.event.inputs.target) }}
         run: npm run deploy:testnet
-        env:
-          PRIVATE_KEY: ${{ secrets.MONAD_DEPLOYER_PRIVATE_KEY }}
-          MONAD_RPC_URL: ${{ secrets.MONAD_RPC_URL }}
-
-      - name: Fund verifier
-        run: npm run fund:testnet
-        env:
-          PRIVATE_KEY: ${{ secrets.MONAD_DEPLOYER_PRIVATE_KEY }}
-          MONAD_RPC_URL: ${{ secrets.MONAD_RPC_URL }}
-
-      - name: Read deployed address
-        id: addr
-        run: |
-          ADDR=$(cat .moningo-address 2>/dev/null || echo "")
-          echo "address=$ADDR" >> "$GITHUB_OUTPUT"
-          echo "Deployed contract address: $ADDR"
-
-      - name: Upload address artifact
+      - name: Deploy duel + practice
+        if: ${{ contains(fromJSON('["games","all"]'), github.event.inputs.target) }}
+        run: npm run deploy:games
+      - name: Deploy streak tree
+        if: ${{ contains(fromJSON('["streak","all"]'), github.event.inputs.target) }}
+        run: npm run deploy:streak
+      - name: Deploy badges
+        if: ${{ contains(fromJSON('["badges","all"]'), github.event.inputs.target) }}
+        run: npm run deploy:badges
+      - name: Upload deployment files
         uses: actions/upload-artifact@v4
         with:
-          name: moningo-contract-address
-          path: contracts/.moningo-address
-          if-no-files-found: ignore
+          name: moningo-deployments
+          path: backend/src/contract/*.json
           retention-days: 90
