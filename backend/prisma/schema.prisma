@@ -13,6 +13,8 @@ model User {
   walletAddress    String     @unique
   totalScore       Int        @default(0)
   lessonsCompleted Int        @default(0)
+  lastSignedDay    String? // UTC day a completion signature was issued
+  lastSignedStake  Int? // stakedAt that signature was bound to
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
   progress         Progress[]

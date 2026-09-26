@@ -30,7 +30,7 @@ app.get("/api/config", wrap(async (_req, res) => {
     faucetUrl: "https://faucet.monad.xyz",
     contractAddress: chain.CONTRACT_ADDRESS,
     dailyStake: "0.1",
-    reward: "0.01",
+    reward: "0.05",
     examFee: "0.05",
     rewardPool: pool ? formatEther(BigInt(pool)) : null,
     lessonsPerDay: LESSONS_PER_DAY,
@@ -110,10 +110,17 @@ app.post("/api/claim-signature", wrap(async (req, res) => {
   res.json({ success: true, signature });
 }));
 
+/** One reward per UTC day; re-signing the same stake is allowed so a failed tx can be retried. */
 async function issueSignature(address) {
   if (!chain.ready() || !chain.verifier) return { signature: null, claimError: "Contract/verifier not configured" };
   const onchain = await chain.getOnchainUser(address);
   if (!onchain.active) return { signature: null, claimError: "No active stake: call startStreak() with 0.1 MON first" };
+  const user = await prisma.user.findUnique({ where: { walletAddress: address } });
+  const day = today();
+  if (user.lastSignedDay === day && user.lastSignedStake !== onchain.stakedAt) {
+    return { signature: null, claimError: "Today's reward already claimed. Come back tomorrow!" };
+  }
+  await prisma.user.update({ where: { id: user.id }, data: { lastSignedDay: day, lastSignedStake: onchain.stakedAt } });
   return { signature: await chain.signCompletion(address), claimError: null };
 }
 
@@ -158,6 +165,7 @@ app.get("/api/users/:address", wrap(async (req, res) => {
     lessonsCompleted: user?.lessonsCompleted ?? 0,
     todayProgress,
     completedToday: todayProgress.filter((p) => p.score > 0).length >= LESSONS_PER_DAY,
+    rewardSignedToday: user?.lastSignedDay === today(),
     onchain,
   });
 }));
