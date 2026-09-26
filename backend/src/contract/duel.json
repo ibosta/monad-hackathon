@@ -1,7 +1,7 @@
 {
-  "address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-  "chainId": 31337,
-  "deployedAt": "2026-09-26T11:28:47.998Z",
+  "address": "0x03978c44AF4515ADBFcd19Be4Fb60fb7C9E1a10d",
+  "chainId": 10143,
+  "deployedAt": "2026-09-26T11:25:18.973Z",
   "abi": [
     {
       "inputs": [

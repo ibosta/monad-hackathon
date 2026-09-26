@@ -59,21 +59,27 @@ function attachDuelServer(server, prisma) {
     matches.set(matchId, m);
     for (const p of m.players) {
       byPlayer.set(p, matchId);
-      const opponent = m.players.find((x) => x !== p);
-      sendTo(p, {
-        t: "matched",
-        matchId,
-        nonce,
-        opponent,
-        vsBot: vsBot && opponent === account?.address,
-        stake: formatEther(STAKE_WEI),
-        contract: duel.address,
-        joinDeadline: Date.now() + JOIN_TIMEOUT_MS,
-      });
+      sendMatched(m, p);
     }
     watchJoins(m);
     if (vsBot) botJoin(m);
     return m;
+  }
+
+  function sendMatched(m, p) {
+    const opponent = m.players.find((x) => x !== p);
+    sendTo(p, {
+      t: "matched",
+      matchId: m.matchId,
+      nonce: m.nonce,
+      opponent,
+      vsBot: m.vsBot && opponent === account?.address,
+      stake: formatEther(STAKE_WEI),
+      contract: duel.address,
+      joinDeadline: m.createdAt + JOIN_TIMEOUT_MS,
+      joined: [...m.joined],
+      state: m.state,
+    });
   }
 
   async function botJoin(m) {
@@ -242,8 +248,12 @@ function attachDuelServer(server, prisma) {
         return;
       }
       if (!me) return;
+      const current = matches.get(byPlayer.get(me));
+      if ((msg.t === "queue" || msg.t === "bot") && current) {
+        sendMatched(current, me); // resume the match the player is already in
+        return;
+      }
       if (msg.t === "queue") {
-        if (byPlayer.has(me)) return;
         if (waiting && waiting !== me && sockets.get(waiting)?.readyState === ws.OPEN) {
           const other = waiting;
           waiting = null;
@@ -257,7 +267,7 @@ function attachDuelServer(server, prisma) {
       } else if (msg.t === "bot") {
         if (!account || !duel.address) return ws.send(JSON.stringify({ t: "error", message: "Bot unavailable" }));
         if (waiting === me) waiting = null;
-        if (!byPlayer.has(me)) createMatch(me, account.address, true);
+        createMatch(me, account.address, true);
       } else if (msg.t === "answer") {
         const m = matches.get(byPlayer.get(me));
         if (m) answer(m, me, msg.i, msg.option);
