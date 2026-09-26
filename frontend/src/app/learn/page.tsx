@@ -12,7 +12,7 @@ import { ActionBar, QuestionCard } from "@/components/question-card";
 import { TxBadge } from "@/components/tx-badge";
 import { WalletButton } from "@/components/wallet-button";
 import { api, type Lesson } from "@/lib/api";
-import { DAILY_STAKE_MON, DAILY_STAKE_WEI, REWARD_MON } from "@/lib/contract";
+import { nextTier, rewardFor } from "@/lib/contract";
 import { useMoningoTx, useOnchainUser, type TxResult } from "@/hooks/use-moningo";
 import { withTxToast } from "@/lib/tx-toast";
 import { cn } from "@/lib/utils";
@@ -42,7 +42,6 @@ export default function LearnPage() {
   const [combo, setCombo] = useState(0);
   const [signature, setSignature] = useState<`0x${string}` | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [stakeTx, setStakeTx] = useState<TxResult | null>(null);
   const [claimTx, setClaimTx] = useState<TxResult | null>(null);
 
   const total = lessons?.length ?? 3;
@@ -51,7 +50,11 @@ export default function LearnPage() {
     [me]
   );
   const lessonsDone = Boolean(me?.completedToday);
-  const claimed = Boolean(me?.rewardSignedToday && user && !user.active) || Boolean(claimTx);
+  const claimed = Boolean(user?.claimedToday) || Boolean(claimTx);
+  // Reward for today's claim grows with the streak (streak + 1 once today is claimed).
+  const todayStreak = (user?.streak ?? 0) + (claimed ? 0 : 1);
+  const todayReward = user?.nextReward && !claimed ? user.nextReward : rewardFor(todayStreak);
+  const upcoming = nextTier(todayStreak);
   const current = queue?.[0];
   const solved = queue ? total - new Set(queue.map((q) => q.id)).size : doneIds.size;
 
@@ -65,16 +68,6 @@ export default function LearnPage() {
       setBusy(null);
     }
   }
-
-  const stake = () =>
-    run("Staking", async () => {
-      setStakeTx(
-        await withTxToast(`Stake ${DAILY_STAKE_MON} MON`, () =>
-          send("startStreak", [], DAILY_STAKE_WEI)
-        )
-      );
-      await refetchOnchain();
-    });
 
   const startLessons = () => setQueue((lessons ?? []).filter((l) => !doneIds.has(l.id)));
 
@@ -106,8 +99,18 @@ export default function LearnPage() {
 
   const claim = () =>
     run("Claiming", async () => {
-      const sig = signature ?? (await api.claimSignature(address!)).signature;
-      setClaimTx(await withTxToast("Claim reward", () => send("completeEnglishTask", [sig])));
+      const fresh = async () => (await api.claimSignature(address!)).signature;
+      let sig = signature ?? (await fresh());
+      let tx: TxResult;
+      try {
+        tx = await withTxToast(`Claim +${todayReward} MON`, () => send("completeDaily", [sig]));
+      } catch (e) {
+        // A signature is bound to the UTC day; if the day rolled over, fetch a fresh one once.
+        if (!(e instanceof Error && /proof rejected|BadSignature/i.test(e.message))) throw e;
+        sig = await fresh();
+        tx = await withTxToast(`Claim +${todayReward} MON`, () => send("completeDaily", [sig]));
+      }
+      setClaimTx(tx);
       await Promise.all([
         refetchOnchain(),
         refetchMe(),
@@ -219,17 +222,8 @@ export default function LearnPage() {
     );
   }
 
-  // ---------- Hub view: stake -> lessons -> claim ----------
-  const active = Boolean(user?.active);
-  const stage = claimed
-    ? "claimed"
-    : !active && !lessonsDone
-      ? "stake"
-      : !lessonsDone
-        ? "lessons"
-        : !active
-          ? "stake-late"
-          : "claim";
+  // ---------- Hub view: lessons -> claim ----------
+  const stage = claimed ? "claimed" : !lessonsDone ? "lessons" : "claim";
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
@@ -246,7 +240,11 @@ export default function LearnPage() {
             <Hub
               mood="cheer"
               title="Daily quest complete! 🎉"
-              text={`Your ${DAILY_STAKE_MON} MON stake is back with a +${REWARD_MON} MON reward. See you tomorrow to keep the streak alive!`}
+              text={
+                upcoming
+                  ? `Come back tomorrow to keep your streak. At day ${upcoming.from} your daily reward grows to ${upcoming.reward} MON.`
+                  : "Come back tomorrow to keep your streak alive!"
+              }
             >
               {claimTx && <TxBadge tx={claimTx} label="Reward paid" />}
               <motion.p
@@ -257,64 +255,73 @@ export default function LearnPage() {
               >
                 🔥 {user?.streak ?? 0} day streak
               </motion.p>
+              <p className="font-bold text-monad-100">
+                Tomorrow: <span className="text-yellow-300">+{rewardFor((user?.streak ?? 0) + 1)} MON</span>
+              </p>
               <div className="flex flex-wrap justify-center gap-3">
-                <Link href="/duel" className="btn-monad">
-                  Play a duel
+                <Link href="/streak" className="btn-ghost-3d">
+                  Streak tree
                 </Link>
-                <Link href="/exam" className="btn-berry">
-                  Level test
+                <Link href="/practice" className="btn-monad">
+                  Keep practicing
                 </Link>
               </div>
-            </Hub>
-          )}
-          {stage === "stake" && (
-            <Hub
-              mood="happy"
-              title="Ready for today's lesson?"
-              text={`Stake ${DAILY_STAKE_MON} MON to commit. Finish ${total} lessons within 24h and get it back +${REWARD_MON} MON. Miss it and it feeds the reward pool.`}
-            >
-              <ActionButton busy={busy} onClick={stake} className="btn-monad">
-                Stake {DAILY_STAKE_MON} MON
-              </ActionButton>
             </Hub>
           )}
           {stage === "lessons" && (
             <Hub
               mood="happy"
-              title={`${doneIds.size}/${total} lessons done`}
-              text="Answer every question correctly. Mistakes come back at the end."
+              title={doneIds.size ? `${doneIds.size}/${total} lessons done` : "Ready for today's lesson?"}
+              text={`Finish ${total} short lessons to earn +${todayReward} MON and grow your streak to day ${todayStreak}. No stake needed.`}
             >
-              {stakeTx && <TxBadge tx={stakeTx} label="Staked" />}
+              <RewardLadder streak={todayStreak} />
               <LessonDots total={total} done={doneIds.size} />
               <button onClick={startLessons} className="btn-green w-full sm:w-auto">
                 {doneIds.size ? "Continue lessons" : "Start lessons"}
               </button>
             </Hub>
           )}
-          {stage === "stake-late" && (
-            <Hub
-              mood="think"
-              title="Lessons done. Now stake to claim!"
-              text={`You finished today's lessons. Stake ${DAILY_STAKE_MON} MON, then claim it right back with the reward.`}
-            >
-              <ActionButton busy={busy} onClick={stake} className="btn-monad">
-                Stake {DAILY_STAKE_MON} MON
-              </ActionButton>
-            </Hub>
-          )}
           {stage === "claim" && (
             <Hub
               mood="cheer"
               title="All lessons done!"
-              text={`Claim your ${DAILY_STAKE_MON} MON stake back plus ${REWARD_MON} MON reward.`}
+              text={`Claim today's reward. Day ${todayStreak} of your streak pays +${todayReward} MON.`}
             >
               <ActionButton busy={busy} onClick={claim} className="btn-green">
-                Claim {(0.1 + Number(REWARD_MON)).toFixed(2)} MON
+                Claim +{todayReward} MON
               </ActionButton>
             </Hub>
           )}
         </motion.div>
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** Shows where today's streak sits on the reward tiers. */
+function RewardLadder({ streak }: { streak: number }) {
+  const upcoming = nextTier(streak);
+  return (
+    <div className="w-full rounded-2xl bg-monad-900/60 p-3 text-left text-sm font-bold">
+      <div className="flex items-center justify-between">
+        <span className="text-monad-200">Day {streak} reward</span>
+        <span className="text-yellow-300">+{rewardFor(streak)} MON</span>
+      </div>
+      {upcoming && (
+        <>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-monad-800">
+            <motion.div
+              className="h-full rounded-full bg-gradient-to-r from-flame to-yellow-300"
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(100, (streak / upcoming.from) * 100)}%` }}
+              transition={spring}
+            />
+          </div>
+          <p className="mt-1 text-xs text-monad-300">
+            {upcoming.from - streak} more day{upcoming.from - streak === 1 ? "" : "s"} → +{upcoming.reward} MON / day
+          </p>
+        </>
+      )}
     </div>
   );
 }

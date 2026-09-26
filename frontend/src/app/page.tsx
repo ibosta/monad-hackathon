@@ -12,7 +12,7 @@ import { Certificate } from "@/components/certificate";
 import { WalletButton } from "@/components/wallet-button";
 import { api } from "@/lib/api";
 import { useAppConfig, useMonBalance, useOnchainUser } from "@/hooks/use-moningo";
-import { DAILY_STAKE_MON, EXAM_FEE_MON, LEVEL_NAMES, REWARD_MON } from "@/lib/contract";
+import { EXAM_FEE_MON, LEVEL_NAMES, nextTier, rewardFor } from "@/lib/contract";
 import { cn, formatMon, shortAddress } from "@/lib/utils";
 
 export default function HomePage() {
@@ -37,7 +37,10 @@ export default function HomePage() {
   const connected = mounted && isConnected;
   const doneToday = me?.todayProgress.filter((p) => p.score > 0).length ?? 0;
   const lessonsPerDay = config?.lessonsPerDay ?? 3;
-  const claimedToday = Boolean(me?.completedToday && user && !user.active);
+  const claimedToday = Boolean(user?.claimedToday);
+  const todayStreak = (user?.streak ?? 0) + (claimedToday ? 0 : 1);
+  const todayReward = rewardFor(todayStreak);
+  const upcoming = nextTier(todayStreak);
 
   return (
     <Stagger className="space-y-6">
@@ -62,8 +65,8 @@ export default function HomePage() {
                 Earn MON.
               </h1>
               <p className="text-balance text-monad-100/80">
-                Stake <b>{DAILY_STAKE_MON} MON</b>, finish 3 bite-sized lessons and get it back{" "}
-                <b>+{REWARD_MON} MON</b>. Prove your level to mint an on-chain CEFR certificate NFT.
+                Finish 3 bite-sized lessons a day and earn MON. The longer your streak, the more you
+                earn: from <b>0.005</b> up to <b>0.03 MON</b> per day. Prove your level to mint an on-chain CEFR certificate NFT.
                 Settled on Monad in under a second.
               </p>
               <div className="flex flex-wrap justify-center gap-3 pt-2 md:justify-start">
@@ -127,20 +130,21 @@ export default function HomePage() {
           <section className="metal-card h-full space-y-4 p-6">
             <h2 className="text-xl font-black text-white">Daily quest</h2>
             <Step
-              done={Boolean(user?.active) || claimedToday}
-              title={`Stake ${DAILY_STAKE_MON} MON`}
-              hint="Your commitment for today"
-            />
-            <Step
               done={doneToday >= lessonsPerDay}
               title={`Finish ${lessonsPerDay} lessons`}
               hint={`${Math.min(doneToday, lessonsPerDay)}/${lessonsPerDay} done`}
             />
             <Step
               done={claimedToday}
-              title={`Claim ${(0.1 + Number(REWARD_MON)).toFixed(2)} MON`}
-              hint="Stake back + reward"
+              title={`Claim +${todayReward} MON`}
+              hint={`Day ${todayStreak} of your streak`}
             />
+            {upcoming && (
+              <p className="rounded-2xl bg-monad-900/60 px-4 py-2 text-sm font-bold text-monad-200">
+                🔥 {upcoming.from - todayStreak} more day{upcoming.from - todayStreak === 1 ? "" : "s"} →{" "}
+                <span className="text-yellow-300">+{upcoming.reward} MON</span> every day
+              </p>
+            )}
             <Link href="/learn" className="btn-monad w-full">
               {claimedToday ? "Done for today 🎉" : "Continue"}
             </Link>
