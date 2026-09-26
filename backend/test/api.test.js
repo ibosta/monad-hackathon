@@ -162,6 +162,12 @@ test("practice: running out of energy returns 402", async () => {
   assert.equal(r.body.code, "NO_ENERGY");
 });
 
+test("sponsored daily claim validates input and needs a configured chain", async () => {
+  assert.equal((await post("/api/daily/claim", { walletAddress: "nope" })).status, 400);
+  const r = await post("/api/daily/claim", { walletAddress: WALLET });
+  assert.equal(r.status, 503, "chain offline in tests -> 503, never a 500");
+});
+
 test("duel stats and unknown routes", async () => {
   const d = await get(`/api/duels/${WALLET}`);
   assert.deepEqual([d.body.played, d.body.dailyLimit, d.body.todayPlayed], [0, 5, 0]);

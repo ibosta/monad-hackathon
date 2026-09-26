@@ -17,6 +17,8 @@ const PORT = Number(process.env.PORT) || 5000;
 const origins = (process.env.CORS_ORIGIN || "*").split(",").map((s) => s.trim());
 app.use(cors({ origin: origins.includes("*") ? true : origins }));
 app.use(express.json({ limit: "100kb" }));
+// Chain reads return bigint; never let a stray bigint turn a response into a 500.
+app.set("json replacer", (_key, value) => (typeof value === "bigint" ? value.toString() : value));
 
 const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 
@@ -133,7 +135,62 @@ app.post(
   })
 );
 
-/** Re-issue the completion signature (e.g. user staked after finishing lessons). */
+/**
+ * Sponsored daily claim: once today's lessons are done, the backend (verifier) submits
+ * Moningo.completeDailyFor(user) and pays the gas, so the learner receives the full reward.
+ */
+app.post(
+  "/api/daily/claim",
+  wrap(async (req, res) => {
+    const { walletAddress } = req.body || {};
+    if (!isAddress(walletAddress || ""))
+      return res.status(400).json({ success: false, message: "Invalid walletAddress" });
+    const address = getAddress(walletAddress);
+    if (!chain.ready() || !chain.verifier)
+      return res.status(503).json({ success: false, message: "Rewards are not configured yet" });
+    const user = await prisma.user.findUnique({ where: { walletAddress: address } });
+    const done = user
+      ? await prisma.progress.count({ where: { userId: user.id, day: today(), score: { gt: 0 } } })
+      : 0;
+    if (done < LESSONS_PER_DAY)
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: `Finish today's lessons first (${done}/${LESSONS_PER_DAY})`,
+        });
+    const before = await chain.getOnchainUser(address);
+    if (before?.claimedToday)
+      return res
+        .status(409)
+        .json({ success: false, message: "Today's reward already claimed. Come back tomorrow!" });
+
+    const t0 = Date.now();
+    const { hash, status } = await games.send({
+      address: chain.CONTRACT_ADDRESS,
+      abi: chain.abi,
+      functionName: "completeDailyFor",
+      args: [address],
+      gas: 150_000n,
+    });
+    if (status !== "success")
+      return res
+        .status(502)
+        .json({ success: false, message: "Claim transaction reverted", txHash: hash });
+    const after = await chain.getOnchainUser(address).catch(() => null);
+    console.log(`[daily] sponsored claim ${address} streak=${after?.streak} tx=${hash}`);
+    res.json({
+      success: true,
+      txHash: hash,
+      ms: Date.now() - t0,
+      streak: after?.streak ?? null,
+      reward: before?.nextReward ?? null,
+      nextReward: after?.nextReward ?? null,
+    });
+  })
+);
+
+/** Re-issue the completion signature (self-paid claim fallback). */
 app.post(
   "/api/claim-signature",
   wrap(async (req, res) => {
@@ -162,7 +219,7 @@ async function issueSignature(address) {
   if (!chain.ready() || !chain.verifier)
     return { signature: null, claimError: "Contract/verifier not configured" };
   const onchain = await chain.getOnchainUser(address);
-  if (onchain.claimedToday)
+  if (onchain?.claimedToday)
     return { signature: null, claimError: "Today's reward already claimed. Come back tomorrow!" };
   return { signature: await chain.signCompletion(address), claimError: null };
 }

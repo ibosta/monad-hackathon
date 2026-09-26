@@ -1,8 +1,8 @@
 {
-  "address": "0x051f170a824d67D4242E1e5DC5B89dd8e2A29059",
+  "address": "0x2A8e7187e6104659E430f247e5A8cBE3D1a363f3",
   "chainId": 10143,
-  "moningo": "0x98523d9200025a278FE1629f36cAc9fE6Dd6f159",
-  "deployedAt": "2026-09-26T11:43:48.074Z",
+  "moningo": "0x8C65E43c904Bffb3Cc4B7785D96e1044532245b4",
+  "deployedAt": "2026-09-26T12:46:30.959Z",
   "abi": [
     {
       "inputs": [
