@@ -2,7 +2,15 @@
 
 import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useAccount, useBalance, useChainId, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from "wagmi";
+import {
+  useAccount,
+  useBalance,
+  useChainId,
+  usePublicClient,
+  useReadContract,
+  useSwitchChain,
+  useWriteContract,
+} from "wagmi";
 import { BaseError, ContractFunctionRevertedError } from "viem";
 import { api } from "@/lib/api";
 import { GAS, envContractAddress, moningoAbi, type OnchainUser } from "@/lib/contract";
@@ -14,7 +22,13 @@ type WriteFn = keyof typeof GAS;
 export type TxResult = { hash: `0x${string}`; ms: number };
 
 export function useAppConfig() {
-  return useQuery({ queryKey: ["config"], queryFn: api.config, staleTime: 15_000, retry: 2, refetchInterval: (q) => (q.state.status === "error" ? 5_000 : false) });
+  return useQuery({
+    queryKey: ["config"],
+    queryFn: api.config,
+    staleTime: 15_000,
+    retry: 2,
+    refetchInterval: (q) => (q.state.status === "error" ? 5_000 : false),
+  });
 }
 
 export function useContractAddress(): `0x${string}` | undefined {
@@ -50,7 +64,11 @@ export function useOnchainUser() {
 
 export function useMonBalance() {
   const { address } = useAccount();
-  return useBalance({ address, chainId: MONAD_CHAIN_ID, query: { enabled: Boolean(address), refetchInterval: 4_000 } });
+  return useBalance({
+    address,
+    chainId: MONAD_CHAIN_ID,
+    query: { enabled: Boolean(address), refetchInterval: 4_000 },
+  });
 }
 
 type ChainTx = {
@@ -76,13 +94,28 @@ export function useChainTx() {
       if (chainId !== MONAD_CHAIN_ID) await switchChainAsync({ chainId: MONAD_CHAIN_ID });
 
       const t0 = performance.now();
-      const hash = await writeContractAsync({ address, abi, functionName, args, value, gas, chainId: MONAD_CHAIN_ID } as never);
+      const hash = await writeContractAsync({
+        address,
+        abi,
+        functionName,
+        args,
+        value,
+        gas,
+        chainId: MONAD_CHAIN_ID,
+      } as never);
       const receipt = await client.waitForTransactionReceipt({ hash, pollingInterval: 250 });
       const ms = Math.round(performance.now() - t0);
       if (receipt.status !== "success") {
         // Re-simulate to surface the custom error name (WrongStake, BadSignature, …).
         try {
-          await client.simulateContract({ address, abi, functionName, args, value, account: receipt.from } as never);
+          await client.simulateContract({
+            address,
+            abi,
+            functionName,
+            args,
+            value,
+            account: receipt.from,
+          } as never);
         } catch (e) {
           throw new Error(explainError(e));
         }
@@ -100,7 +133,14 @@ export function useMoningoTx() {
   const send = useChainTx();
   return useCallback(
     (functionName: WriteFn, args: readonly unknown[] = [], value?: bigint) =>
-      send({ address: contract, abi: moningoAbi, functionName, args, value, gas: GAS[functionName] }),
+      send({
+        address: contract,
+        abi: moningoAbi,
+        functionName,
+        args,
+        value,
+        gas: GAS[functionName],
+      }),
     [contract, send]
   );
 }

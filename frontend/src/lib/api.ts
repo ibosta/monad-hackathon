@@ -5,7 +5,14 @@ export const WS_URL = () =>
 
 export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
 
-export type Lesson = { id: number; type: string; question: string; options: string[]; answer: string; speak?: string };
+export type Lesson = {
+  id: number;
+  type: string;
+  question: string;
+  options: string[];
+  answer: string;
+  speak?: string;
+};
 export type ExamQuestion = { id: number; level: number; question: string; options: string[] };
 
 export type AppConfig = {
@@ -43,8 +50,22 @@ export type StreakTree = {
   daysToNext: number;
 };
 
-export type Badge = { id: number; name: string; kind: "streak" | "duel"; threshold: number; progress: number; earned: boolean; tokenId: number };
-export type BadgesResponse = { contract: string; streak: number; duelWinStreak: number; bestDuelWinStreak: number; badges: Badge[] };
+export type Badge = {
+  id: number;
+  name: string;
+  kind: "streak" | "duel";
+  threshold: number;
+  progress: number;
+  earned: boolean;
+  tokenId: number;
+};
+export type BadgesResponse = {
+  contract: string;
+  streak: number;
+  duelWinStreak: number;
+  bestDuelWinStreak: number;
+  badges: Badge[];
+};
 
 export type PracticeState = {
   energy: number;
@@ -61,7 +82,13 @@ export type PracticeState = {
   checkpointReward: string;
 };
 
-export type PracticeQuestion = { id: number; type: string; question: string; options: string[]; speak?: string };
+export type PracticeQuestion = {
+  id: number;
+  type: string;
+  question: string;
+  options: string[];
+  speak?: string;
+};
 
 export type SyncProgressResponse = {
   success: boolean;
@@ -104,7 +131,11 @@ export type CertificateInfo = {
   dailyLessons: number;
 };
 
-export type LeaderboardEntry = { walletAddress: string; totalScore: number; lessonsCompleted: number };
+export type LeaderboardEntry = {
+  walletAddress: string;
+  totalScore: number;
+  lessonsCompleted: number;
+};
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BACKEND_URL}${path}`, {
@@ -117,7 +148,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-const post = <T,>(path: string, data: unknown) => request<T>(path, { method: "POST", body: JSON.stringify(data) });
+const post = <T>(path: string, data: unknown) =>
+  request<T>(path, { method: "POST", body: JSON.stringify(data) });
 
 export const api = {
   config: () => request<AppConfig>("/api/config"),
@@ -126,7 +158,8 @@ export const api = {
     post<SyncProgressResponse>("/api/sync-progress", { walletAddress, lessonId, score }),
   claimSignature: (walletAddress: string) =>
     post<{ success: boolean; signature: `0x${string}` }>("/api/claim-signature", { walletAddress }),
-  levelTest: (address: string) => request<{ fee: string; questions: ExamQuestion[] }>(`/api/level-test?address=${address}`),
+  levelTest: (address: string) =>
+    request<{ fee: string; questions: ExamQuestion[] }>(`/api/level-test?address=${address}`),
   submitLevelTest: (walletAddress: string, answers: Record<number, string>) =>
     post<ExamResult>("/api/level-test/submit", { walletAddress, answers }),
   user: (address: string) => request<UserResponse>(`/api/users/${address}`),
@@ -134,17 +167,34 @@ export const api = {
   certificates: (address: string) => request<CertificateInfo[]>(`/api/certificates/${address}`),
   streakTree: (address: string) => request<StreakTree>(`/api/streak-tree/${address}`),
   badges: (address: string) => request<BadgesResponse>(`/api/badges/${address}`),
-  badgeSignature: (address: string, id: number) => post<{ signature: `0x${string}` }>("/api/badges/signature", { address, id }),
+  badgeSignature: (address: string, id: number) =>
+    post<{ signature: `0x${string}` }>("/api/badges/signature", { address, id }),
   duelStats: (address: string) => request<DuelStats>(`/api/duels/${address}`),
   practice: (address: string) => request<PracticeState>(`/api/practice/${address}`),
   practiceStart: (address: string, level: number) =>
-    post<{ level: number; energy: number; questions: PracticeQuestion[] }>("/api/practice/start", { address, level }),
+    post<{ level: number; energy: number; questions: PracticeQuestion[] }>("/api/practice/start", {
+      address,
+      level,
+    }),
   practiceAnswer: (address: string, questionId: number, option: string) =>
-    post<{ correct: boolean; answer: string }>("/api/practice/answer", { address, questionId, option }),
+    post<{ correct: boolean; answer: string }>("/api/practice/answer", {
+      address,
+      questionId,
+      option,
+    }),
   practiceFinish: (address: string) =>
-    post<{ passed: boolean; stars: number; correct: number; total: number; level: number; checkpoint: number | null }>("/api/practice/finish", { address }),
-  creditEnergy: (address: string, txHash: string) => post<{ energy: number; credited: number }>("/api/practice/energy/credit", { address, txHash }),
+    post<{
+      passed: boolean;
+      stars: number;
+      correct: number;
+      total: number;
+      level: number;
+      checkpoint: number | null;
+    }>("/api/practice/finish", { address }),
+  creditEnergy: (address: string, txHash: string) =>
+    post<{ energy: number; credited: number }>("/api/practice/energy/credit", { address, txHash }),
   checkpointSignature: (address: string, level: number) =>
     post<{ signature: `0x${string}` }>("/api/practice/checkpoint-signature", { address, level }),
-  certificate: (tokenId: number) => request<CertificateInfo & { valid: boolean }>(`/api/certificate/${tokenId}`),
+  certificate: (tokenId: number) =>
+    request<CertificateInfo & { valid: boolean }>(`/api/certificate/${tokenId}`),
 };

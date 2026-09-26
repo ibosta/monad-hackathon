@@ -46,7 +46,10 @@ export default function LearnPage() {
   const [claimTx, setClaimTx] = useState<TxResult | null>(null);
 
   const total = lessons?.length ?? 3;
-  const doneIds = useMemo(() => new Set(me?.todayProgress.filter((p) => p.score > 0).map((p) => p.lessonId)), [me]);
+  const doneIds = useMemo(
+    () => new Set(me?.todayProgress.filter((p) => p.score > 0).map((p) => p.lessonId)),
+    [me]
+  );
   const lessonsDone = Boolean(me?.completedToday);
   const claimed = Boolean(me?.rewardSignedToday && user && !user.active) || Boolean(claimTx);
   const current = queue?.[0];
@@ -65,7 +68,11 @@ export default function LearnPage() {
 
   const stake = () =>
     run("Staking", async () => {
-      setStakeTx(await withTxToast(`Stake ${DAILY_STAKE_MON} MON`, () => send("startStreak", [], DAILY_STAKE_WEI)));
+      setStakeTx(
+        await withTxToast(`Stake ${DAILY_STAKE_MON} MON`, () =>
+          send("startStreak", [], DAILY_STAKE_WEI)
+        )
+      );
       await refetchOnchain();
     });
 
@@ -101,14 +108,22 @@ export default function LearnPage() {
     run("Claiming", async () => {
       const sig = signature ?? (await api.claimSignature(address!)).signature;
       setClaimTx(await withTxToast("Claim reward", () => send("completeEnglishTask", [sig])));
-      await Promise.all([refetchOnchain(), refetchMe(), qc.invalidateQueries({ queryKey: ["config"] })]);
+      await Promise.all([
+        refetchOnchain(),
+        refetchMe(),
+        qc.invalidateQueries({ queryKey: ["config"] }),
+      ]);
     });
 
   if (!mounted) return null;
 
   if (!isConnected) {
     return (
-      <Hub mood="happy" title="Connect your wallet to start" text="Your wallet is your account. Progress and rewards live on Monad.">
+      <Hub
+        mood="happy"
+        title="Connect your wallet to start"
+        text="Your wallet is your account. Progress and rewards live on Monad."
+      >
         <WalletButton />
       </Hub>
     );
@@ -121,13 +136,19 @@ export default function LearnPage() {
     const progress = (solved / total) * 100;
     const states: Record<string, string | undefined> = {};
     for (const o of current.options) {
-      if (feedback) states[o] = o === feedback.answer ? "correct" : o === selected ? "wrong" : undefined;
+      if (feedback)
+        states[o] = o === feedback.answer ? "correct" : o === selected ? "wrong" : undefined;
       else if (o === selected) states[o] = "selected";
     }
     return (
       <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col">
         <div className="mb-8 flex items-center gap-4">
-          <motion.button whileTap={{ scale: 0.85 }} onClick={() => setQueue(null)} aria-label="Quit lesson" className="text-monad-300 hover:text-white">
+          <motion.button
+            whileTap={{ scale: 0.85 }}
+            onClick={() => setQueue(null)}
+            aria-label="Quit lesson"
+            className="text-monad-300 hover:text-white"
+          >
             <X className="h-6 w-6" />
           </motion.button>
           <div className="relative h-4 flex-1 overflow-hidden rounded-full bg-monad-900">
@@ -140,11 +161,22 @@ export default function LearnPage() {
           </div>
           <AnimatePresence mode="popLayout">
             {combo >= 2 ? (
-              <motion.span key={combo} initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="font-black text-flame">
+              <motion.span
+                key={combo}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0 }}
+                className="font-black text-flame"
+              >
                 🔥x{combo}
               </motion.span>
             ) : (
-              <motion.span key="heart" initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-1 font-black text-duo-red">
+              <motion.span
+                key="heart"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="flex items-center gap-1 font-black text-duo-red"
+              >
                 <Heart className="h-5 w-5 fill-duo-red" />∞
               </motion.span>
             )}
@@ -161,9 +193,20 @@ export default function LearnPage() {
         />
 
         <div className="flex-1" />
-        <ActionBar feedback={feedback && { correct: feedback.correct, text: feedback.correct ? pickPraise(combo) : `Correct answer: ${feedback.answer}` }}>
+        <ActionBar
+          feedback={
+            feedback && {
+              correct: feedback.correct,
+              text: feedback.correct ? pickPraise(combo) : `Correct answer: ${feedback.answer}`,
+            }
+          }
+        >
           {feedback ? (
-            <button onClick={next} disabled={Boolean(busy)} className={cn("w-full", feedback.correct ? "btn-green" : "btn-berry")}>
+            <button
+              onClick={next}
+              disabled={Boolean(busy)}
+              className={cn("w-full", feedback.correct ? "btn-green" : "btn-berry")}
+            >
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : "Continue"}
             </button>
           ) : (
@@ -178,45 +221,96 @@ export default function LearnPage() {
 
   // ---------- Hub view: stake -> lessons -> claim ----------
   const active = Boolean(user?.active);
-  const stage = claimed ? "claimed" : !active && !lessonsDone ? "stake" : !lessonsDone ? "lessons" : !active ? "stake-late" : "claim";
+  const stage = claimed
+    ? "claimed"
+    : !active && !lessonsDone
+      ? "stake"
+      : !lessonsDone
+        ? "lessons"
+        : !active
+          ? "stake-late"
+          : "claim";
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <Confetti fire={claimTx?.hash} />
       <AnimatePresence mode="wait">
-        <motion.div key={stage} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} transition={spring}>
+        <motion.div
+          key={stage}
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.96 }}
+          transition={spring}
+        >
           {stage === "claimed" && (
-            <Hub mood="cheer" title="Daily quest complete! 🎉" text={`Your ${DAILY_STAKE_MON} MON stake is back with a +${REWARD_MON} MON reward. See you tomorrow to keep the streak alive!`}>
+            <Hub
+              mood="cheer"
+              title="Daily quest complete! 🎉"
+              text={`Your ${DAILY_STAKE_MON} MON stake is back with a +${REWARD_MON} MON reward. See you tomorrow to keep the streak alive!`}
+            >
               {claimTx && <TxBadge tx={claimTx} label="Reward paid" />}
-              <motion.p initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ ...spring, delay: 0.3 }} className="text-3xl font-black text-flame">
+              <motion.p
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ ...spring, delay: 0.3 }}
+                className="text-3xl font-black text-flame"
+              >
                 🔥 {user?.streak ?? 0} day streak
               </motion.p>
               <div className="flex flex-wrap justify-center gap-3">
-                <Link href="/duel" className="btn-monad">Play a duel</Link>
-                <Link href="/exam" className="btn-berry">Level test</Link>
+                <Link href="/duel" className="btn-monad">
+                  Play a duel
+                </Link>
+                <Link href="/exam" className="btn-berry">
+                  Level test
+                </Link>
               </div>
             </Hub>
           )}
           {stage === "stake" && (
-            <Hub mood="happy" title="Ready for today's lesson?" text={`Stake ${DAILY_STAKE_MON} MON to commit. Finish ${total} lessons within 24h and get it back +${REWARD_MON} MON. Miss it and it feeds the reward pool.`}>
-              <ActionButton busy={busy} onClick={stake} className="btn-monad">Stake {DAILY_STAKE_MON} MON</ActionButton>
+            <Hub
+              mood="happy"
+              title="Ready for today's lesson?"
+              text={`Stake ${DAILY_STAKE_MON} MON to commit. Finish ${total} lessons within 24h and get it back +${REWARD_MON} MON. Miss it and it feeds the reward pool.`}
+            >
+              <ActionButton busy={busy} onClick={stake} className="btn-monad">
+                Stake {DAILY_STAKE_MON} MON
+              </ActionButton>
             </Hub>
           )}
           {stage === "lessons" && (
-            <Hub mood="happy" title={`${doneIds.size}/${total} lessons done`} text="Answer every question correctly. Mistakes come back at the end.">
+            <Hub
+              mood="happy"
+              title={`${doneIds.size}/${total} lessons done`}
+              text="Answer every question correctly. Mistakes come back at the end."
+            >
               {stakeTx && <TxBadge tx={stakeTx} label="Staked" />}
               <LessonDots total={total} done={doneIds.size} />
-              <button onClick={startLessons} className="btn-green w-full sm:w-auto">{doneIds.size ? "Continue lessons" : "Start lessons"}</button>
+              <button onClick={startLessons} className="btn-green w-full sm:w-auto">
+                {doneIds.size ? "Continue lessons" : "Start lessons"}
+              </button>
             </Hub>
           )}
           {stage === "stake-late" && (
-            <Hub mood="think" title="Lessons done. Now stake to claim!" text={`You finished today's lessons. Stake ${DAILY_STAKE_MON} MON, then claim it right back with the reward.`}>
-              <ActionButton busy={busy} onClick={stake} className="btn-monad">Stake {DAILY_STAKE_MON} MON</ActionButton>
+            <Hub
+              mood="think"
+              title="Lessons done. Now stake to claim!"
+              text={`You finished today's lessons. Stake ${DAILY_STAKE_MON} MON, then claim it right back with the reward.`}
+            >
+              <ActionButton busy={busy} onClick={stake} className="btn-monad">
+                Stake {DAILY_STAKE_MON} MON
+              </ActionButton>
             </Hub>
           )}
           {stage === "claim" && (
-            <Hub mood="cheer" title="All lessons done!" text={`Claim your ${DAILY_STAKE_MON} MON stake back plus ${REWARD_MON} MON reward.`}>
-              <ActionButton busy={busy} onClick={claim} className="btn-green">Claim {(0.1 + Number(REWARD_MON)).toFixed(2)} MON</ActionButton>
+            <Hub
+              mood="cheer"
+              title="All lessons done!"
+              text={`Claim your ${DAILY_STAKE_MON} MON stake back plus ${REWARD_MON} MON reward.`}
+            >
+              <ActionButton busy={busy} onClick={claim} className="btn-green">
+                Claim {(0.1 + Number(REWARD_MON)).toFixed(2)} MON
+              </ActionButton>
             </Hub>
           )}
         </motion.div>
@@ -241,7 +335,9 @@ function LessonDots({ total, done }: { total: number; done: number }) {
           transition={{ ...spring, delay: i * 0.08 }}
           className={cn(
             "flex h-12 w-12 items-center justify-center rounded-full border-b-4 text-lg font-black",
-            i < done ? "border-duo-dark bg-duo text-white" : "border-monad-800 bg-monad-900 text-monad-300"
+            i < done
+              ? "border-duo-dark bg-duo text-white"
+              : "border-monad-800 bg-monad-900 text-monad-300"
           )}
         >
           {i < done ? "✓" : i + 1}
@@ -251,9 +347,24 @@ function LessonDots({ total, done }: { total: number; done: number }) {
   );
 }
 
-function ActionButton({ busy, onClick, className, children }: { busy: string | null; onClick: () => void; className: string; children: React.ReactNode }) {
+function ActionButton({
+  busy,
+  onClick,
+  className,
+  children,
+}: {
+  busy: string | null;
+  onClick: () => void;
+  className: string;
+  children: React.ReactNode;
+}) {
   return (
-    <motion.button whileHover={{ scale: 1.02 }} onClick={onClick} disabled={Boolean(busy)} className={cn(className, "w-full sm:w-auto")}>
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      onClick={onClick}
+      disabled={Boolean(busy)}
+      className={cn(className, "w-full sm:w-auto")}
+    >
       {busy ? (
         <>
           <Loader2 className="h-5 w-5 animate-spin" /> {busy}…
@@ -265,7 +376,17 @@ function ActionButton({ busy, onClick, className, children }: { busy: string | n
   );
 }
 
-function Hub({ mood, title, text, children }: { mood: MascotMood; title: string; text: string; children?: React.ReactNode }) {
+function Hub({
+  mood,
+  title,
+  text,
+  children,
+}: {
+  mood: MascotMood;
+  title: string;
+  text: string;
+  children?: React.ReactNode;
+}) {
   return (
     <section className="metal-card mx-auto flex max-w-xl flex-col items-center gap-4 p-8 text-center">
       <Mascot mood={mood} size={150} />

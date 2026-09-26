@@ -19,7 +19,8 @@ const LINKS = [
   { href: "/profile", label: "Profile", icon: User },
 ];
 
-const isActive = (pathname: string | null, href: string) => (href === "/" ? pathname === "/" : pathname?.startsWith(href));
+const isActive = (pathname: string | null, href: string) =>
+  href === "/" ? pathname === "/" : pathname?.startsWith(href);
 
 export function Navbar() {
   const pathname = usePathname();
@@ -39,7 +40,9 @@ export function Navbar() {
             <motion.div whileHover={{ rotate: [0, -12, 12, 0], transition: { duration: 0.5 } }}>
               <Mascot size={40} float={false} />
             </motion.div>
-            <span className="metal-text hidden text-xl font-black tracking-tight sm:inline md:hidden lg:inline">Moningo</span>
+            <span className="metal-text hidden text-xl font-black tracking-tight sm:inline md:hidden lg:inline">
+              Moningo
+            </span>
           </Link>
 
           <nav className="hidden items-center gap-0.5 md:flex">
@@ -69,7 +72,11 @@ export function Navbar() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Link href="/streak" title="Streak tree" className="flex items-center gap-1 rounded-full border border-flame/30 bg-flame/10 px-3 py-1.5 text-sm font-black text-flame transition-colors hover:bg-flame/20">
+            <Link
+              href="/streak"
+              title="Streak tree"
+              className="flex items-center gap-1 rounded-full border border-flame/30 bg-flame/10 px-3 py-1.5 text-sm font-black text-flame transition-colors hover:bg-flame/20"
+            >
               <motion.span
                 animate={streak > 0 ? { scale: [1, 1.25, 1], rotate: [0, -8, 8, 0] } : {}}
                 transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 2 }}
@@ -77,7 +84,12 @@ export function Navbar() {
                 <Flame className="h-4 w-4 fill-flame" />
               </motion.span>
               <AnimatePresence mode="popLayout">
-                <motion.span key={streak} initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 12, opacity: 0 }}>
+                <motion.span
+                  key={streak}
+                  initial={{ y: -12, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 12, opacity: 0 }}
+                >
                   {streak}
                 </motion.span>
               </AnimatePresence>
@@ -92,9 +104,22 @@ export function Navbar() {
         {LINKS.map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href);
           return (
-            <Link key={href} href={href} className="relative flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold uppercase">
-              {active && <motion.span layoutId="tab-dot" className="absolute top-0 h-1 w-10 rounded-b-full bg-monad" transition={spring} />}
-              <motion.span animate={{ scale: active ? 1.15 : 1, y: active ? -1 : 0 }} transition={spring}>
+            <Link
+              key={href}
+              href={href}
+              className="relative flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-bold uppercase"
+            >
+              {active && (
+                <motion.span
+                  layoutId="tab-dot"
+                  className="absolute top-0 h-1 w-10 rounded-b-full bg-monad"
+                  transition={spring}
+                />
+              )}
+              <motion.span
+                animate={{ scale: active ? 1.15 : 1, y: active ? -1 : 0 }}
+                transition={spring}
+              >
                 <Icon className={cn("h-5 w-5", active ? "text-monad" : "text-monad-300/70")} />
               </motion.span>
               <span className={active ? "text-monad" : "text-monad-300/70"}>{label}</span>

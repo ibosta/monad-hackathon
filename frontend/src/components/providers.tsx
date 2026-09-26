@@ -9,7 +9,10 @@ import { wagmiConfig } from "@/lib/wagmi";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
-    () => new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: 1 } } })
+    () =>
+      new QueryClient({
+        defaultOptions: { queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: 1 } },
+      })
   );
 
   return (
@@ -22,7 +25,8 @@ export function Providers({ children }: { children: ReactNode }) {
           richColors
           toastOptions={{
             classNames: {
-              toast: "!rounded-2xl !border !border-monad-700 !bg-[#1a0f3d] !text-monad-50 !shadow-2xl !shadow-monad/30 !font-bold",
+              toast:
+                "!rounded-2xl !border !border-monad-700 !bg-[#1a0f3d] !text-monad-50 !shadow-2xl !shadow-monad/30 !font-bold",
               description: "!text-monad-200",
             },
           }}

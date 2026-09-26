@@ -33,15 +33,15 @@ export const monadTestnet = {
 
 export const wagmiConfig = createConfig({
   chains: [monadTestnet, mainnet],
-  connectors: [
-    injected({ shimDisconnect: true }),
-  ],
+  connectors: [injected({ shimDisconnect: true })],
   ssr: true,
   storage: createStorage({
     storage: typeof window !== "undefined" ? window.localStorage : undefined,
   }),
   transports: {
-    [monadTestnet.id]: http(process.env.NEXT_PUBLIC_MONAD_RPC_URL || "https://testnet-rpc.monad.xyz"),
+    [monadTestnet.id]: http(
+      process.env.NEXT_PUBLIC_MONAD_RPC_URL || "https://testnet-rpc.monad.xyz"
+    ),
     [mainnet.id]: http(),
   },
   multiInjectedProviderDiscovery: true,

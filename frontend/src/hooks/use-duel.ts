@@ -42,7 +42,12 @@ export type DuelState = {
   opponentAnswered: boolean;
   reveal: Reveal | null;
   scores: Record<string, number>;
-  result: { winner: string | null; draw: boolean; payout: string; txHash: `0x${string}` | null } | null;
+  result: {
+    winner: string | null;
+    draw: boolean;
+    payout: string;
+    txHash: `0x${string}` | null;
+  } | null;
   cancelReason: string | null;
   error: string | null;
 };
@@ -88,24 +93,44 @@ export function useDuel(address?: `0x${string}`) {
         const m = JSON.parse(ev.data);
         switch (m.t) {
           case "welcome":
-            patch((s) => ({ online: m.online, phase: s.phase === "connecting" ? "idle" : s.phase }));
+            patch((s) => ({
+              online: m.online,
+              phase: s.phase === "connecting" ? "idle" : s.phase,
+            }));
             if (m.inMatch) sock.send(JSON.stringify({ t: "queue" })); // server re-sends the running match
             break;
           case "queued":
             patch({ phase: "searching" });
             break;
           case "matched":
-            patch({ phase: "matched", match: m, result: null, reveal: null, scores: {}, cancelReason: null });
+            patch({
+              phase: "matched",
+              match: m,
+              result: null,
+              reveal: null,
+              scores: {},
+              cancelReason: null,
+            });
             break;
           case "joined":
-            patch((s) => (s.match ? { match: { ...s.match, joined: [...new Set([...s.match.joined, m.player])] } } : {}));
+            patch((s) =>
+              s.match
+                ? { match: { ...s.match, joined: [...new Set([...s.match.joined, m.player])] } }
+                : {}
+            );
             break;
           case "start":
             patch({ phase: "countdown" });
             break;
           case "question":
             clockSkew.current = m.serverNow - Date.now();
-            patch({ phase: "question", question: { i: m.i, total: m.total, q: m.q, endsAt: m.endsAt - clockSkew.current }, myAnswer: null, opponentAnswered: false, reveal: null });
+            patch({
+              phase: "question",
+              question: { i: m.i, total: m.total, q: m.q, endsAt: m.endsAt - clockSkew.current },
+              myAnswer: null,
+              opponentAnswered: false,
+              reveal: null,
+            });
             break;
           case "opponent_answered":
             patch({ opponentAnswered: true });
@@ -136,7 +161,10 @@ export function useDuel(address?: `0x${string}`) {
     };
   }, [address]);
 
-  const sendMsg = useCallback((m: object) => ws.current?.readyState === WebSocket.OPEN && ws.current.send(JSON.stringify(m)), []);
+  const sendMsg = useCallback(
+    (m: object) => ws.current?.readyState === WebSocket.OPEN && ws.current.send(JSON.stringify(m)),
+    []
+  );
 
   return {
     state,

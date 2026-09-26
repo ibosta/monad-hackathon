@@ -6,7 +6,13 @@ import { Volume2 } from "lucide-react";
 import { Mascot, type MascotMood } from "@/components/mascot";
 import { shake, slide, spring } from "@/components/motion";
 
-export type Question = { id: number; type: string; question: string; options: string[]; speak?: string };
+export type Question = {
+  id: number;
+  type: string;
+  question: string;
+  options: string[];
+  speak?: string;
+};
 
 export const TYPE_LABEL: Record<string, string> = {
   vocabulary: "📚 New word",
@@ -61,10 +67,24 @@ export function QuestionCard({
 
   return (
     <AnimatePresence mode="wait" custom={direction}>
-      <motion.div key={q.id} custom={direction} variants={slide} initial="enter" animate="center" exit="exit">
-        <p className="mb-2 text-sm font-extrabold uppercase tracking-wider text-monad-300">{TYPE_LABEL[q.type] ?? q.type}</p>
+      <motion.div
+        key={q.id}
+        custom={direction}
+        variants={slide}
+        initial="enter"
+        animate="center"
+        exit="exit"
+      >
+        <p className="mb-2 text-sm font-extrabold uppercase tracking-wider text-monad-300">
+          {TYPE_LABEL[q.type] ?? q.type}
+        </p>
         <div className="mb-6 flex items-end gap-3">
-          <motion.div key={mood} initial={{ scale: 0.9 }} animate={{ scale: 1, y: mood === "cheer" ? [0, -14, 0] : 0 }} transition={spring}>
+          <motion.div
+            key={mood}
+            initial={{ scale: 0.9 }}
+            animate={{ scale: 1, y: mood === "cheer" ? [0, -14, 0] : 0 }}
+            transition={spring}
+          >
             <Mascot size={90} mood={mood} float={false} />
           </motion.div>
           <motion.div
@@ -101,7 +121,9 @@ export function QuestionCard({
               className="option-tile flex items-center gap-3"
               data-state={states[o]}
             >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 border-current/30 text-xs opacity-70">{i + 1}</span>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border-2 border-current/30 text-xs opacity-70">
+                {i + 1}
+              </span>
               {o}
             </motion.button>
           ))}
@@ -134,7 +156,9 @@ export function ActionBar({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={spring}
-            className={"mb-3 text-lg font-black " + (feedback.correct ? "text-duo" : "text-duo-red")}
+            className={
+              "mb-3 text-lg font-black " + (feedback.correct ? "text-duo" : "text-duo-red")
+            }
           >
             {feedback.text}
           </motion.p>

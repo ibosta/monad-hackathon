@@ -1,6 +1,13 @@
 "use client";
 
-import { animate, motion, useInView, useMotionValue, useTransform, type Variants } from "framer-motion";
+import {
+  animate,
+  motion,
+  useInView,
+  useMotionValue,
+  useTransform,
+  type Variants,
+} from "framer-motion";
 import { useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +23,13 @@ const item: Variants = {
 };
 
 /** Children wrapped in <StaggerItem> animate in one after another. */
-export function Stagger({ children, className }: { children: React.ReactNode; className?: string }) {
+export function Stagger({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <motion.div variants={container} initial="hidden" animate="show" className={className}>
       {children}
@@ -24,16 +37,36 @@ export function Stagger({ children, className }: { children: React.ReactNode; cl
   );
 }
 
-export function StaggerItem({ children, className, hover = false }: { children: React.ReactNode; className?: string; hover?: boolean }) {
+export function StaggerItem({
+  children,
+  className,
+  hover = false,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  hover?: boolean;
+}) {
   return (
-    <motion.div variants={item} className={className} whileHover={hover ? { y: -4, transition: spring } : undefined}>
+    <motion.div
+      variants={item}
+      className={className}
+      whileHover={hover ? { y: -4, transition: spring } : undefined}
+    >
       {children}
     </motion.div>
   );
 }
 
 /** Animated number that counts up when it scrolls into view or changes. */
-export function CountUp({ value, decimals = 0, className }: { value: number; decimals?: number; className?: string }) {
+export function CountUp({
+  value,
+  decimals = 0,
+  className,
+}: {
+  value: number;
+  decimals?: number;
+  className?: string;
+}) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true });
   const mv = useMotionValue(0);
@@ -43,7 +76,11 @@ export function CountUp({ value, decimals = 0, className }: { value: number; dec
     const c = animate(mv, value, { duration: 0.9, ease: [0.16, 1, 0.3, 1] });
     return () => c.stop();
   }, [inView, value, mv]);
-  return <motion.span ref={ref} className={className}>{text}</motion.span>;
+  return (
+    <motion.span ref={ref} className={className}>
+      {text}
+    </motion.span>
+  );
 }
 
 const COLORS = ["#836EF9", "#DDD7FE", "#A0055D", "#58CC02", "#FFB547", "#ffffff"];
@@ -66,7 +103,10 @@ export function Confetti({ fire, count = 70 }: { fire: unknown; count?: number }
   );
   if (!fire) return null;
   return (
-    <div className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center overflow-hidden" aria-hidden>
+    <div
+      className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center overflow-hidden"
+      aria-hidden
+    >
       {pieces.map((p) => (
         <motion.span
           key={p.id}
@@ -74,7 +114,12 @@ export function Confetti({ fire, count = 70 }: { fire: unknown; count?: number }
           style={{ width: p.size, height: p.size * (p.round ? 1 : 0.5), background: p.color }}
           initial={{ x: 0, y: 0, opacity: 1, rotate: 0 }}
           animate={{ x: p.x, y: [0, p.y, p.y + 900], opacity: [1, 1, 0], rotate: p.rotate }}
-          transition={{ duration: 2.2, delay: p.delay, ease: [0.2, 0.7, 0.4, 1], times: [0, 0.35, 1] }}
+          transition={{
+            duration: 2.2,
+            delay: p.delay,
+            ease: [0.2, 0.7, 0.4, 1],
+            times: [0, 0.35, 1],
+          }}
         />
       ))}
     </div>

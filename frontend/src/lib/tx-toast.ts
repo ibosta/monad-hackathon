@@ -10,7 +10,10 @@ export async function withTxToast(label: string, run: () => Promise<TxResult>): 
     toast.success(`${label} ✓`, {
       id,
       description: `Confirmed on Monad in ${(tx.ms / 1000).toFixed(2)}s`,
-      action: { label: "View", onClick: () => window.open(`${MONAD_EXPLORER}/tx/${tx.hash}`, "_blank") },
+      action: {
+        label: "View",
+        onClick: () => window.open(`${MONAD_EXPLORER}/tx/${tx.hash}`, "_blank"),
+      },
       duration: 5000,
     });
     return tx;

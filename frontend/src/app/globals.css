@@ -39,7 +39,9 @@
       radial-gradient(900px 500px at 110% 0%, rgba(160, 5, 93, 0.18), transparent 60%),
       radial-gradient(800px 600px at 50% 120%, rgba(32, 0, 82, 0.9), transparent 70%);
     background-attachment: fixed;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
   html {
     scroll-behavior: smooth;
@@ -49,7 +51,15 @@
 @layer components {
   /* Brushed-metal violet headline */
   .metal-text {
-    background: linear-gradient(100deg, #ffffff 0%, #ddd7fe 22%, #8f7cff 42%, #ffffff 55%, #bcb1fc 72%, #f3f1ff 100%);
+    background: linear-gradient(
+      100deg,
+      #ffffff 0%,
+      #ddd7fe 22%,
+      #8f7cff 42%,
+      #ffffff 55%,
+      #bcb1fc 72%,
+      #f3f1ff 100%
+    );
     background-size: 200% 100%;
     -webkit-background-clip: text;
     background-clip: text;
@@ -64,7 +74,8 @@
     border: 1.5px solid transparent;
     background:
       linear-gradient(160deg, rgba(40, 24, 92, 0.92), rgba(16, 9, 42, 0.96)) padding-box,
-      linear-gradient(135deg, #e6e1fe 0%, #836ef9 30%, #3b2a8f 55%, #bcb1fc 80%, #a0055d 100%) border-box;
+      linear-gradient(135deg, #e6e1fe 0%, #836ef9 30%, #3b2a8f 55%, #bcb1fc 80%, #a0055d 100%)
+        border-box;
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.12),
       0 20px 50px -20px rgba(131, 110, 249, 0.45);
@@ -82,7 +93,9 @@
   .btn-monad {
     @apply btn-3d text-white;
     background: linear-gradient(180deg, #9d8cfb 0%, #836ef9 55%, #6a52e8 100%);
-    box-shadow: 0 5px 0 0 #3b2a8f, inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    box-shadow:
+      0 5px 0 0 #3b2a8f,
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
   }
   .btn-monad:not(:disabled):hover {
     filter: brightness(1.08);
@@ -90,12 +103,16 @@
   .btn-green {
     @apply btn-3d text-white;
     background: linear-gradient(180deg, #6ee00a, #58cc02);
-    box-shadow: 0 5px 0 0 #46a302, inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    box-shadow:
+      0 5px 0 0 #46a302,
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
   }
   .btn-berry {
     @apply btn-3d text-white;
     background: linear-gradient(180deg, #c8177e, #a0055d);
-    box-shadow: 0 5px 0 0 #6b033f, inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    box-shadow:
+      0 5px 0 0 #6b033f,
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
   }
   .btn-ghost-3d {
     @apply btn-3d border-2 border-monad-800 bg-monad-900/40 text-monad-200;
@@ -129,24 +146,74 @@
     text-wrap: balance;
   }
   .glow-monad {
-    box-shadow: 0 0 0 1px rgba(131, 110, 249, 0.35), 0 8px 30px -10px rgba(131, 110, 249, 0.6);
+    box-shadow:
+      0 0 0 1px rgba(131, 110, 249, 0.35),
+      0 8px 30px -10px rgba(131, 110, 249, 0.6);
   }
   .glow-flame {
-    box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.25), 0 8px 30px -10px rgba(249, 115, 22, 0.4);
+    box-shadow:
+      0 0 0 1px rgba(249, 115, 22, 0.25),
+      0 8px 30px -10px rgba(249, 115, 22, 0.4);
   }
 }
 
 /* Mascot micro-animations */
-.mona-blink { transform-box: fill-box; transform-origin: center; animation: mona-blink 4.5s infinite; }
-.mona-flap path { transform-box: fill-box; animation: mona-flap 0.35s ease-in-out infinite alternate; }
-.mona-flap path:first-child { transform-origin: 100% 100%; }
-.mona-flap path:last-child { transform-origin: 0% 100%; animation-direction: alternate-reverse; }
-.mona-idle-wing path { transform-box: fill-box; transform-origin: 50% 0%; animation: mona-sway 3s ease-in-out infinite; }
-@keyframes mona-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
-@keyframes mona-flap { from { transform: rotate(-10deg); } to { transform: rotate(14deg); } }
-@keyframes mona-sway { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(6deg); } }
+.mona-blink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mona-blink 4.5s infinite;
+}
+.mona-flap path {
+  transform-box: fill-box;
+  animation: mona-flap 0.35s ease-in-out infinite alternate;
+}
+.mona-flap path:first-child {
+  transform-origin: 100% 100%;
+}
+.mona-flap path:last-child {
+  transform-origin: 0% 100%;
+  animation-direction: alternate-reverse;
+}
+.mona-idle-wing path {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+  animation: mona-sway 3s ease-in-out infinite;
+}
+@keyframes mona-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+@keyframes mona-flap {
+  from {
+    transform: rotate(-10deg);
+  }
+  to {
+    transform: rotate(14deg);
+  }
+}
+@keyframes mona-sway {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(6deg);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .mona-blink, .mona-flap path, .mona-idle-wing path, .metal-text, .animate-float { animation: none !important; }
+  .mona-blink,
+  .mona-flap path,
+  .mona-idle-wing path,
+  .metal-text,
+  .animate-float {
+    animation: none !important;
+  }
 }
 
 /* Moving metallic sheen on hover for cards */
@@ -156,18 +223,37 @@
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.07) 45%, transparent 60%);
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.07) 45%,
+    transparent 60%
+  );
   background-size: 250% 100%;
   background-position: 150% 0;
   transition: background-position 0.9s ease;
 }
-.metal-card:hover::after { background-position: -50% 0; }
-
-@keyframes sheen {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+.metal-card:hover::after {
+  background-position: -50% 0;
 }
 
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: #0b0620; }
-::-webkit-scrollbar-thumb { background: #3b2a8f; border-radius: 8px; }
+@keyframes sheen {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0b0620;
+}
+::-webkit-scrollbar-thumb {
+  background: #3b2a8f;
+  border-radius: 8px;
+}

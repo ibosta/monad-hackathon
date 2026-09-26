@@ -59,7 +59,7 @@ export default function DuelPage() {
   const me = address;
   const opp = state.match?.opponent;
   const myScore = state.scores[me] ?? 0;
-  const oppScore = opp ? state.scores[opp] ?? 0 : 0;
+  const oppScore = opp ? (state.scores[opp] ?? 0) : 0;
   const iStaked = state.match?.joined.some((j) => j.toLowerCase() === me.toLowerCase());
   const oppStaked = state.match?.joined.some((j) => j.toLowerCase() === opp?.toLowerCase());
   const lowBalance = balance && balance.value < STAKE_WEI + 20_000_000_000_000_000n;
@@ -88,7 +88,13 @@ export default function DuelPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <AnimatePresence mode="wait">
-        <motion.div key={phaseKey(state.phase)} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }} transition={spring}>
+        <motion.div
+          key={phaseKey(state.phase)}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -16 }}
+          transition={spring}
+        >
           {state.phase === "connecting" && (
             <Shell>
               <Loader2 className="h-8 w-8 animate-spin text-monad" />
@@ -98,13 +104,18 @@ export default function DuelPage() {
 
           {state.phase === "idle" && (
             <Shell>
-              <motion.div animate={{ rotate: [0, -8, 8, 0] }} transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 1 }}>
+              <motion.div
+                animate={{ rotate: [0, -8, 8, 0] }}
+                transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 1 }}
+              >
                 <Swords className="h-16 w-16 text-monad" />
               </motion.div>
               <h1 className="metal-text text-4xl font-black">1v1 Duel</h1>
               <p className="text-balance text-monad-100/80">
-                Get matched with another learner. You both stake <b>{config?.duel.stake ?? "0.5"} MON</b>, answer 5 timed questions,
-                and the winner takes <b>{config?.duel.payout ?? "0.99"} MON</b>. Speed matters: faster correct answers score more.
+                Get matched with another learner. You both stake{" "}
+                <b>{config?.duel.stake ?? "0.5"} MON</b>, answer 5 timed questions, and the winner
+                takes <b>{config?.duel.payout ?? "0.99"} MON</b>. Speed matters: faster correct
+                answers score more.
               </p>
               <div className="grid w-full grid-cols-3 gap-2 text-center text-sm">
                 <Rule k="Stake" v="0.5 MON" />
@@ -116,19 +127,45 @@ export default function DuelPage() {
                   <span className="text-monad-200">Today</span>
                   <span className="flex gap-1">
                     {Array.from({ length: stats.dailyLimit }, (_, i) => (
-                      <span key={i} className={cn("h-3 w-3 rounded-full", i < stats.todayPlayed ? "bg-monad-700" : "bg-duo")} />
+                      <span
+                        key={i}
+                        className={cn(
+                          "h-3 w-3 rounded-full",
+                          i < stats.todayPlayed ? "bg-monad-700" : "bg-duo"
+                        )}
+                      />
                     ))}
                   </span>
-                  <span className="text-white">{Math.max(0, stats.dailyLimit - stats.todayPlayed)} duels left</span>
+                  <span className="text-white">
+                    {Math.max(0, stats.dailyLimit - stats.todayPlayed)} duels left
+                  </span>
                 </div>
               )}
-              {stats && stats.winStreak > 0 && <p className="text-sm font-black text-flame">🔥 {stats.winStreak} win streak: keep it going for a badge NFT!</p>}
-              <button onClick={duel.findOpponent} disabled={Boolean(lowBalance) || limitHit} className="btn-monad w-full sm:w-auto">
+              {stats && stats.winStreak > 0 && (
+                <p className="text-sm font-black text-flame">
+                  🔥 {stats.winStreak} win streak: keep it going for a badge NFT!
+                </p>
+              )}
+              <button
+                onClick={duel.findOpponent}
+                disabled={Boolean(lowBalance) || limitHit}
+                className="btn-monad w-full sm:w-auto"
+              >
                 <Swords className="h-5 w-5" /> Find opponent
               </button>
-              {lowBalance && <p className="text-sm font-bold text-duo-red">You need at least ~0.52 MON to duel.</p>}
-              {limitHit && <p className="text-sm font-bold text-duo-red">Daily duel limit reached. Come back tomorrow!</p>}
-              <p className="text-xs text-monad-300">{state.online} player(s) online · settled on Monad by the referee contract</p>
+              {lowBalance && (
+                <p className="text-sm font-bold text-duo-red">
+                  You need at least ~0.52 MON to duel.
+                </p>
+              )}
+              {limitHit && (
+                <p className="text-sm font-bold text-duo-red">
+                  Daily duel limit reached. Come back tomorrow!
+                </p>
+              )}
+              <p className="text-xs text-monad-300">
+                {state.online} player(s) online · settled on Monad by the referee contract
+              </p>
             </Shell>
           )}
 
@@ -136,12 +173,25 @@ export default function DuelPage() {
             <Shell>
               <Radar />
               <h2 className="text-2xl font-black text-white">Looking for an opponent…</h2>
-              <SearchTimer since={searchStart} onBotOffer={
-                <motion.button initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} onClick={duel.playBot} className="btn-berry">
-                  <Bot className="h-5 w-5" /> Play vs Mona bot
-                </motion.button>
-              } />
-              <button onClick={duel.leave} className="text-sm font-bold text-monad-300 hover:text-white">Cancel</button>
+              <SearchTimer
+                since={searchStart}
+                onBotOffer={
+                  <motion.button
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    onClick={duel.playBot}
+                    className="btn-berry"
+                  >
+                    <Bot className="h-5 w-5" /> Play vs Mona bot
+                  </motion.button>
+                }
+              />
+              <button
+                onClick={duel.leave}
+                className="text-sm font-bold text-monad-300 hover:text-white"
+              >
+                Cancel
+              </button>
             </Shell>
           )}
 
@@ -150,11 +200,19 @@ export default function DuelPage() {
               <VsBanner me={me} opp={state.match.opponent} bot={state.match.vsBot} />
               <div className="grid w-full grid-cols-2 gap-3 text-sm font-bold">
                 <StakeStatus label="You" done={Boolean(iStaked)} />
-                <StakeStatus label={state.match.vsBot ? "Mona" : "Opponent"} done={Boolean(oppStaked)} />
+                <StakeStatus
+                  label={state.match.vsBot ? "Mona" : "Opponent"}
+                  done={Boolean(oppStaked)}
+                />
               </div>
               {!iStaked ? (
                 <button onClick={stake} disabled={staking} className="btn-green w-full sm:w-auto">
-                  {staking ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />} Stake 0.5 MON
+                  {staking ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Zap className="h-5 w-5" />
+                  )}{" "}
+                  Stake 0.5 MON
                 </button>
               ) : (
                 <p className="flex items-center gap-2 font-bold text-monad-200">
@@ -169,9 +227,18 @@ export default function DuelPage() {
 
           {(state.phase === "question" || state.phase === "reveal") && state.question && (
             <div className="space-y-5">
-              <Scoreboard me={me} opp={opp!} myScore={myScore} oppScore={oppScore} bot={state.match?.vsBot} oppAnswered={state.opponentAnswered} />
+              <Scoreboard
+                me={me}
+                opp={opp!}
+                myScore={myScore}
+                oppScore={oppScore}
+                bot={state.match?.vsBot}
+                oppAnswered={state.opponentAnswered}
+              />
               <div className="flex items-center justify-between text-sm font-black text-monad-200">
-                <span>Question {state.question.i + 1}/{state.question.total}</span>
+                <span>
+                  Question {state.question.i + 1}/{state.question.total}
+                </span>
                 {state.phase === "question" && <QuestionTimer endsAt={state.question.endsAt} />}
               </div>
               <QuestionCard
@@ -183,14 +250,34 @@ export default function DuelPage() {
                 states={Object.fromEntries(
                   state.question.q.options.map((o) => [
                     o,
-                    state.reveal ? (o === state.reveal.answer ? "correct" : o === state.myAnswer ? "wrong" : undefined) : o === state.myAnswer ? "selected" : undefined,
+                    state.reveal
+                      ? o === state.reveal.answer
+                        ? "correct"
+                        : o === state.myAnswer
+                          ? "wrong"
+                          : undefined
+                      : o === state.myAnswer
+                        ? "selected"
+                        : undefined,
                   ])
                 )}
               />
               <AnimatePresence>
                 {state.reveal && (
-                  <motion.p initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className={cn("text-center text-2xl font-black", state.reveal.you.correct ? "text-duo" : "text-duo-red")}>
-                    {state.reveal.you.correct ? `+${state.reveal.you.points} pts` : state.reveal.you.option ? "Wrong!" : "Too slow!"}
+                  <motion.p
+                    initial={{ opacity: 0, scale: 0.6 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    className={cn(
+                      "text-center text-2xl font-black",
+                      state.reveal.you.correct ? "text-duo" : "text-duo-red"
+                    )}
+                  >
+                    {state.reveal.you.correct
+                      ? `+${state.reveal.you.points} pts`
+                      : state.reveal.you.option
+                        ? "Wrong!"
+                        : "Too slow!"}
                   </motion.p>
                 )}
               </AnimatePresence>
@@ -201,34 +288,72 @@ export default function DuelPage() {
             <Shell>
               <Loader2 className="h-10 w-10 animate-spin text-monad" />
               <h2 className="text-2xl font-black text-white">Settling the pot on Monad…</h2>
-              <Scoreboard me={me} opp={opp!} myScore={myScore} oppScore={oppScore} bot={state.match?.vsBot} />
+              <Scoreboard
+                me={me}
+                opp={opp!}
+                myScore={myScore}
+                oppScore={oppScore}
+                bot={state.match?.vsBot}
+              />
             </Shell>
           )}
 
           {state.phase === "result" && state.result && (
             <Shell>
-              <Confetti fire={state.result.winner?.toLowerCase() === me.toLowerCase() ? state.result.txHash ?? "win" : null} />
+              <Confetti
+                fire={
+                  state.result.winner?.toLowerCase() === me.toLowerCase()
+                    ? (state.result.txHash ?? "win")
+                    : null
+                }
+              />
               {(() => {
                 const won = state.result.winner?.toLowerCase() === me.toLowerCase();
                 return (
                   <>
-                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", stiffness: 180, damping: 10 }}>
-                      <Mascot size={150} mood={won ? "cheer" : state.result.draw ? "think" : "sad"} />
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", stiffness: 180, damping: 10 }}
+                    >
+                      <Mascot
+                        size={150}
+                        mood={won ? "cheer" : state.result.draw ? "think" : "sad"}
+                      />
                     </motion.div>
-                    <h1 className="metal-text text-4xl font-black">{won ? "You won!" : state.result.draw ? "It's a draw" : "You lost"}</h1>
+                    <h1 className="metal-text text-4xl font-black">
+                      {won ? "You won!" : state.result.draw ? "It's a draw" : "You lost"}
+                    </h1>
                     <p className="text-lg font-bold text-monad-100">
-                      {won ? `+${state.result.payout} MON sent to your wallet` : state.result.draw ? "Both stakes refunded" : "Better luck next time!"}
+                      {won
+                        ? `+${state.result.payout} MON sent to your wallet`
+                        : state.result.draw
+                          ? "Both stakes refunded"
+                          : "Better luck next time!"}
                     </p>
                   </>
                 );
               })()}
-              <Scoreboard me={me} opp={opp!} myScore={myScore} oppScore={oppScore} bot={state.match?.vsBot} />
+              <Scoreboard
+                me={me}
+                opp={opp!}
+                myScore={myScore}
+                oppScore={oppScore}
+                bot={state.match?.vsBot}
+              />
               {state.result.txHash && (
-                <a href={`${MONAD_EXPLORER}/tx/${state.result.txHash}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm font-bold text-monad-300 hover:text-white">
+                <a
+                  href={`${MONAD_EXPLORER}/tx/${state.result.txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-sm font-bold text-monad-300 hover:text-white"
+                >
                   Settlement tx <ExternalLink className="h-3.5 w-3.5" />
                 </a>
               )}
-              <button onClick={duel.reset} className="btn-monad">Play again</button>
+              <button onClick={duel.reset} className="btn-monad">
+                Play again
+              </button>
             </Shell>
           )}
 
@@ -237,7 +362,9 @@ export default function DuelPage() {
               <Mascot size={120} mood="sad" />
               <h2 className="text-2xl font-black text-white">Duel cancelled</h2>
               <p className="text-monad-100/80">{state.cancelReason}</p>
-              <button onClick={duel.reset} className="btn-monad">Back</button>
+              <button onClick={duel.reset} className="btn-monad">
+                Back
+              </button>
             </Shell>
           )}
         </motion.div>
@@ -250,7 +377,11 @@ export default function DuelPage() {
 const phaseKey = (p: string) => (p === "reveal" ? "question" : p);
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return <section className="metal-card flex flex-col items-center gap-5 p-8 text-center">{children}</section>;
+  return (
+    <section className="metal-card flex flex-col items-center gap-5 p-8 text-center">
+      {children}
+    </section>
+  );
 }
 
 function Rule({ k, v }: { k: string; v: string }) {
@@ -297,8 +428,21 @@ function SearchTimer({ since, onBotOffer }: { since: number; onBotOffer: React.R
 function Avatar({ label, bot, you }: { label: string; bot?: boolean; you?: boolean }) {
   return (
     <div className="flex flex-col items-center gap-2">
-      <div className={cn("rounded-full p-1", you ? "bg-gradient-to-br from-monad-300 to-monad" : "bg-gradient-to-br from-berry-400 to-berry")}>
-        <div className="rounded-full bg-[#140a33] p-1.5">{bot ? <Mascot size={64} float={false} mood="cheer" /> : <Mascot size={64} float={false} />}</div>
+      <div
+        className={cn(
+          "rounded-full p-1",
+          you
+            ? "bg-gradient-to-br from-monad-300 to-monad"
+            : "bg-gradient-to-br from-berry-400 to-berry"
+        )}
+      >
+        <div className="rounded-full bg-[#140a33] p-1.5">
+          {bot ? (
+            <Mascot size={64} float={false} mood="cheer" />
+          ) : (
+            <Mascot size={64} float={false} />
+          )}
+        </div>
       </div>
       <span className="font-mono text-xs font-bold text-monad-100">{label}</span>
     </div>
@@ -308,13 +452,26 @@ function Avatar({ label, bot, you }: { label: string; bot?: boolean; you?: boole
 function VsBanner({ me, opp, bot }: { me: string; opp: string; bot: boolean }) {
   return (
     <div className="flex w-full items-center justify-around">
-      <motion.div initial={{ x: -120, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={spring}>
+      <motion.div
+        initial={{ x: -120, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={spring}
+      >
         <Avatar label="You" you />
       </motion.div>
-      <motion.span initial={{ scale: 0, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 300, damping: 10, delay: 0.25 }} className="metal-text text-5xl font-black">
+      <motion.span
+        initial={{ scale: 0, rotate: -30 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ type: "spring", stiffness: 300, damping: 10, delay: 0.25 }}
+        className="metal-text text-5xl font-black"
+      >
         VS
       </motion.span>
-      <motion.div initial={{ x: 120, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={spring}>
+      <motion.div
+        initial={{ x: 120, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={spring}
+      >
         <Avatar label={bot ? "Mona 🤖" : shortAddress(opp)} bot={bot} />
       </motion.div>
       <span className="sr-only">{me}</span>
@@ -324,7 +481,12 @@ function VsBanner({ me, opp, bot }: { me: string; opp: string; bot: boolean }) {
 
 function StakeStatus({ label, done }: { label: string; done: boolean }) {
   return (
-    <div className={cn("rounded-2xl border-2 p-3 transition-colors", done ? "border-duo bg-duo/15 text-duo" : "border-monad-800 bg-monad-900/50 text-monad-300")}>
+    <div
+      className={cn(
+        "rounded-2xl border-2 p-3 transition-colors",
+        done ? "border-duo bg-duo/15 text-duo" : "border-monad-800 bg-monad-900/50 text-monad-300"
+      )}
+    >
       {label}: {done ? "staked ✓" : "not staked"}
     </div>
   );
@@ -337,7 +499,11 @@ function Deadline({ until }: { until: number }) {
     return () => clearInterval(t);
   }, []);
   const s = Math.max(0, Math.round((until - now) / 1000));
-  return <p className="text-xs text-monad-300">Both players must stake within {s}s or stakes are refunded.</p>;
+  return (
+    <p className="text-xs text-monad-300">
+      Both players must stake within {s}s or stakes are refunded.
+    </p>
+  );
 }
 
 function Countdown() {
@@ -376,14 +542,34 @@ function QuestionTimer({ endsAt }: { endsAt: number }) {
     <span className="flex items-center gap-2">
       <Timer className={cn("h-4 w-4", left < 4000 && "animate-pulse text-duo-red")} />
       <span className="h-2 w-28 overflow-hidden rounded-full bg-monad-900">
-        <span className={cn("block h-full rounded-full transition-[width] duration-100", left < 4000 ? "bg-duo-red" : "bg-monad")} style={{ width: `${pct}%` }} />
+        <span
+          className={cn(
+            "block h-full rounded-full transition-[width] duration-100",
+            left < 4000 ? "bg-duo-red" : "bg-monad"
+          )}
+          style={{ width: `${pct}%` }}
+        />
       </span>
       <span className="w-8 text-right font-mono">{Math.ceil(left / 1000)}s</span>
     </span>
   );
 }
 
-function Scoreboard({ me, opp, myScore, oppScore, bot, oppAnswered }: { me: string; opp: string; myScore: number; oppScore: number; bot?: boolean; oppAnswered?: boolean }) {
+function Scoreboard({
+  me,
+  opp,
+  myScore,
+  oppScore,
+  bot,
+  oppAnswered,
+}: {
+  me: string;
+  opp: string;
+  myScore: number;
+  oppScore: number;
+  bot?: boolean;
+  oppAnswered?: boolean;
+}) {
   return (
     <div className="grid w-full grid-cols-2 gap-3">
       <div className="rounded-2xl border-2 border-monad bg-monad/15 p-3 text-left">
@@ -391,11 +577,18 @@ function Scoreboard({ me, opp, myScore, oppScore, bot, oppAnswered }: { me: stri
         <CountUp value={myScore} className="text-3xl font-black text-white" />
       </div>
       <div className="relative rounded-2xl border-2 border-berry bg-berry/15 p-3 text-right">
-        <p className="text-xs font-extrabold uppercase text-pink-200">{bot ? "Mona 🤖" : shortAddress(opp)}</p>
+        <p className="text-xs font-extrabold uppercase text-pink-200">
+          {bot ? "Mona 🤖" : shortAddress(opp)}
+        </p>
         <CountUp value={oppScore} className="text-3xl font-black text-white" />
         <AnimatePresence>
           {oppAnswered && (
-            <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="absolute -left-2 -top-2 rounded-full bg-flame px-2 py-0.5 text-[10px] font-black text-white">
+            <motion.span
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0 }}
+              className="absolute -left-2 -top-2 rounded-full bg-flame px-2 py-0.5 text-[10px] font-black text-white"
+            >
               answered!
             </motion.span>
           )}

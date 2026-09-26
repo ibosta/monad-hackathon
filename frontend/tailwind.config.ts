@@ -92,20 +92,20 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
-        "pop": {
+        pop: {
           "0%": { transform: "scale(0.95)", opacity: "0" },
           "60%": { transform: "scale(1.03)", opacity: "1" },
           "100%": { transform: "scale(1)", opacity: "1" },
         },
-        "float": {
+        float: {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-8px)" },
         },
-        "sheen": {
+        sheen: {
           "0%": { backgroundPosition: "200% 0" },
           "100%": { backgroundPosition: "-200% 0" },
         },
-        "shake": {
+        shake: {
           "0%, 100%": { transform: "translateX(0)" },
           "20%, 60%": { transform: "translateX(-6px)" },
           "40%, 80%": { transform: "translateX(6px)" },
@@ -115,10 +115,10 @@ const config: Config = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.4s ease-out",
-        "pop": "pop 0.3s ease-out",
-        "shake": "shake 0.4s ease-in-out",
-        "float": "float 3s ease-in-out infinite",
-        "sheen": "sheen 6s linear infinite",
+        pop: "pop 0.3s ease-out",
+        shake: "shake 0.4s ease-in-out",
+        float: "float 3s ease-in-out infinite",
+        sheen: "sheen 6s linear infinite",
       },
     },
   },

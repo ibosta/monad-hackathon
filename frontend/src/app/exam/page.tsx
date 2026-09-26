@@ -18,7 +18,11 @@ import { useMoningoTx, useOnchainUser, type TxResult } from "@/hooks/use-moningo
 import { cn } from "@/lib/utils";
 
 const LEVEL_TEXT: Record<string, string> = {
-  A1: "Beginner", A2: "Elementary", B1: "Intermediate", B2: "Upper-intermediate", C1: "Advanced",
+  A1: "Beginner",
+  A2: "Elementary",
+  B1: "Intermediate",
+  B2: "Upper-intermediate",
+  C1: "Advanced",
 };
 
 export default function ExamPage() {
@@ -59,7 +63,12 @@ export default function ExamPage() {
 
   const payAndStart = () =>
     run("Paying fee", async () => {
-      if (!user?.examPaid) setPayTx(await withTxToast(`Pay ${EXAM_FEE_MON} MON exam fee`, () => send("startLevelTest", [], EXAM_FEE_WEI)));
+      if (!user?.examPaid)
+        setPayTx(
+          await withTxToast(`Pay ${EXAM_FEE_MON} MON exam fee`, () =>
+            send("startLevelTest", [], EXAM_FEE_WEI)
+          )
+        );
       await Promise.all([refetch(), drawExam()]);
       setAnswers({});
       setIndex(0);
@@ -77,7 +86,11 @@ export default function ExamPage() {
     run("Minting", async () => {
       if (!result?.signature) throw new Error(result?.claimError ?? "No signature");
       const sig = result.signature;
-      setMintTx(await withTxToast("Mint certificate NFT", () => send("claimCertificate", [result.level, sig])));
+      setMintTx(
+        await withTxToast("Mint certificate NFT", () =>
+          send("claimCertificate", [result.level, sig])
+        )
+      );
       await refetch();
     });
 
@@ -91,7 +104,12 @@ export default function ExamPage() {
       </Panel>
     );
   }
-  if (!exam) return <Panel><Loader2 className="h-8 w-8 animate-spin text-monad" /></Panel>;
+  if (!exam)
+    return (
+      <Panel>
+        <Loader2 className="h-8 w-8 animate-spin text-monad" />
+      </Panel>
+    );
 
   const questions = exam.questions;
 
@@ -102,24 +120,44 @@ export default function ExamPage() {
     return (
       <div className="mx-auto max-w-2xl space-y-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => { setDir(-1); if (index) setIndex(index - 1); else setStep("intro"); }} className="text-monad-300 hover:text-white" aria-label="Back">
+          <button
+            onClick={() => {
+              setDir(-1);
+              if (index) setIndex(index - 1);
+              else setStep("intro");
+            }}
+            className="text-monad-300 hover:text-white"
+            aria-label="Back"
+          >
             <ArrowLeft className="h-6 w-6" />
           </button>
           <div className="h-4 flex-1 overflow-hidden rounded-full bg-monad-900">
-            <motion.div className="h-full rounded-full bg-gradient-to-r from-monad to-berry-400" animate={{ width: `${((index + 1) / questions.length) * 100}%` }} transition={spring} />
+            <motion.div
+              className="h-full rounded-full bg-gradient-to-r from-monad to-berry-400"
+              animate={{ width: `${((index + 1) / questions.length) * 100}%` }}
+              transition={spring}
+            />
           </div>
-          <span className="font-black text-monad-200">{index + 1}/{questions.length}</span>
+          <span className="font-black text-monad-200">
+            {index + 1}/{questions.length}
+          </span>
         </div>
         <QuestionCard
           q={{ ...q, type: `Question ${index + 1} · ${LEVEL_NAMES[q.level]}` }}
           direction={dir}
           mood="think"
-          states={Object.fromEntries(q.options.map((o) => [o, chosen === o ? "selected" : undefined]))}
+          states={Object.fromEntries(
+            q.options.map((o) => [o, chosen === o ? "selected" : undefined])
+          )}
           onSelect={(o) => setAnswers({ ...answers, [q.id]: o })}
         />
         <button
           disabled={!chosen || Boolean(busy)}
-          onClick={() => { setDir(1); if (last) submit(answers); else setIndex(index + 1); }}
+          onClick={() => {
+            setDir(1);
+            if (last) submit(answers);
+            else setIndex(index + 1);
+          }}
           className={cn("w-full", last ? "btn-berry" : "btn-monad")}
         >
           {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : last ? "Finish test" : "Next"}
@@ -134,7 +172,9 @@ export default function ExamPage() {
       <Panel>
         <Confetti fire={mintTx?.hash} />
         <Mascot mood={result.level >= 3 ? "cheer" : "happy"} size={130} />
-        <p className="text-sm font-extrabold uppercase tracking-widest text-monad-300">Your English level</p>
+        <p className="text-sm font-extrabold uppercase tracking-widest text-monad-300">
+          Your English level
+        </p>
         <motion.div
           initial={{ scale: 0, rotate: -180 }}
           animate={{ scale: 1, rotate: 0 }}
@@ -144,15 +184,33 @@ export default function ExamPage() {
           {result.levelName}
         </motion.div>
         <p className="text-xl font-black text-white">{LEVEL_TEXT[result.levelName]}</p>
-        <p className="text-monad-200">{result.correct}/{result.total} correct</p>
+        <p className="text-monad-200">
+          {result.correct}/{result.total} correct
+        </p>
         {mintTx && user?.certificateId ? (
-          <motion.div initial={{ opacity: 0, rotateY: 90 }} animate={{ opacity: 1, rotateY: 0 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }} className="w-full space-y-3" style={{ perspective: 1000 }}>
+          <motion.div
+            initial={{ opacity: 0, rotateY: 90 }}
+            animate={{ opacity: 1, rotateY: 0 }}
+            transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full space-y-3"
+            style={{ perspective: 1000 }}
+          >
             <TxBadge tx={mintTx} label="NFT minted" />
             <Certificate tokenId={user.certificateId} />
           </motion.div>
         ) : (
-          <button onClick={mint} disabled={Boolean(busy) || !result.signature} className="btn-green w-full sm:w-auto">
-            {busy ? <><Loader2 className="h-5 w-5 animate-spin" /> {busy}…</> : `Mint ${result.levelName} certificate NFT`}
+          <button
+            onClick={mint}
+            disabled={Boolean(busy) || !result.signature}
+            className="btn-green w-full sm:w-auto"
+          >
+            {busy ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" /> {busy}…
+              </>
+            ) : (
+              `Mint ${result.levelName} certificate NFT`
+            )}
           </button>
         )}
         {!result.signature && <p className="text-sm text-duo-red">{result.claimError}</p>}
@@ -167,19 +225,43 @@ export default function ExamPage() {
         <Mascot size={150} mood="think" />
         <h1 className="metal-text text-3xl font-black">Level test</h1>
         <p className="text-balance text-monad-100/80">
-          10 questions from A1 to C1, graded by the Moningo server. Your level is signed and minted as a{" "}
-          <b>soulbound NFT certificate</b> whose image is rendered fully on-chain on Monad.
+          10 questions from A1 to C1, graded by the Moningo server. Your level is signed and minted
+          as a <b>soulbound NFT certificate</b> whose image is rendered fully on-chain on Monad.
         </p>
         <div className="flex flex-wrap justify-center gap-2 text-sm font-bold">
           {LEVEL_NAMES.slice(1).map((l) => (
-            <span key={l} className={cn("rounded-full px-3 py-1", user?.level && LEVEL_NAMES[user.level] === l ? "bg-monad text-white" : "bg-monad-900/70 text-monad-200")}>{l}</span>
+            <span
+              key={l}
+              className={cn(
+                "rounded-full px-3 py-1",
+                user?.level && LEVEL_NAMES[user.level] === l
+                  ? "bg-monad text-white"
+                  : "bg-monad-900/70 text-monad-200"
+              )}
+            >
+              {l}
+            </span>
           ))}
         </div>
         {payTx && <TxBadge tx={payTx} label="Fee paid" />}
-        <button onClick={payAndStart} disabled={Boolean(busy)} className="btn-berry w-full sm:w-auto">
-          {busy ? <><Loader2 className="h-5 w-5 animate-spin" /> {busy}…</> : user?.examPaid ? "Resume paid test" : `Pay ${EXAM_FEE_MON} MON & start`}
+        <button
+          onClick={payAndStart}
+          disabled={Boolean(busy)}
+          className="btn-berry w-full sm:w-auto"
+        >
+          {busy ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" /> {busy}…
+            </>
+          ) : user?.examPaid ? (
+            "Resume paid test"
+          ) : (
+            `Pay ${EXAM_FEE_MON} MON & start`
+          )}
         </button>
-        <p className="text-xs text-monad-300">The fee tops up the daily reward pool for all learners.</p>
+        <p className="text-xs text-monad-300">
+          The fee tops up the daily reward pool for all learners.
+        </p>
         {error && <p className="font-bold text-duo-red">{error}</p>}
       </Panel>
       {user?.certificateId ? (
@@ -193,5 +275,9 @@ export default function ExamPage() {
 }
 
 function Panel({ children }: { children: React.ReactNode }) {
-  return <section className="metal-card mx-auto flex max-w-xl flex-col items-center gap-4 p-8 text-center">{children}</section>;
+  return (
+    <section className="metal-card mx-auto flex max-w-xl flex-col items-center gap-4 p-8 text-center">
+      {children}
+    </section>
+  );
 }

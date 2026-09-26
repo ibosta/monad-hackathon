@@ -1,4 +1,10 @@
-type AnyErr = { code?: number; message?: string; shortMessage?: string; details?: string; cause?: unknown };
+type AnyErr = {
+  code?: number;
+  message?: string;
+  shortMessage?: string;
+  details?: string;
+  cause?: unknown;
+};
 
 function codesAndText(e: unknown): { codes: number[]; text: string } {
   const codes: number[] = [];

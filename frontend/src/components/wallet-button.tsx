@@ -48,7 +48,9 @@ export function WalletButton() {
   const handleConnect = async (connector: Connector) => {
     // Wallets allow one pending permission request per site; never fire a second one.
     if (inFlight.current) {
-      setError("A request is already open in your wallet. Open the MetaMask extension and approve or reject it.");
+      setError(
+        "A request is already open in your wallet. Open the MetaMask extension and approve or reject it."
+      );
       return;
     }
     inFlight.current = true;
@@ -71,7 +73,9 @@ export function WalletButton() {
     try {
       await switchChainAsync({ chainId: MONAD_CHAIN_ID });
     } catch (e) {
-      setError(walletErrorMessage(e) ?? "Couldn't switch network. Switch to Monad Testnet in your wallet.");
+      setError(
+        walletErrorMessage(e) ?? "Couldn't switch network. Switch to Monad Testnet in your wallet."
+      );
     }
   };
 
@@ -112,9 +116,7 @@ export function WalletButton() {
                 <Wallet className="h-5 w-5 text-monad" />
                 Connect a wallet
               </DialogTitle>
-              <DialogDescription>
-                Choose a wallet to connect to Monad Testnet.
-              </DialogDescription>
+              <DialogDescription>Choose a wallet to connect to Monad Testnet.</DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
               {uniqueConnectors.length === 0 && (
@@ -151,7 +153,11 @@ export function WalletButton() {
                   Check your wallet: approve the connection request there.
                 </p>
               )}
-              {error && <p className="rounded-xl bg-duo-red/15 p-3 text-sm font-semibold text-duo-red">{error}</p>}
+              {error && (
+                <p className="rounded-xl bg-duo-red/15 p-3 text-sm font-semibold text-duo-red">
+                  {error}
+                </p>
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -162,12 +168,22 @@ export function WalletButton() {
   if (wrongNetwork) {
     return (
       <div className="relative">
-        <button onClick={switchToMonad} disabled={switching} className="btn-berry px-4 py-2 text-xs">
-          {switching ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+        <button
+          onClick={switchToMonad}
+          disabled={switching}
+          className="btn-berry px-4 py-2 text-xs"
+        >
+          {switching ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <AlertTriangle className="h-4 w-4" />
+          )}
           Switch to Monad
         </button>
         {error && (
-          <p className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl bg-[#1a0f3d] p-3 text-xs font-semibold text-duo-red shadow-xl">{error}</p>
+          <p className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl bg-[#1a0f3d] p-3 text-xs font-semibold text-duo-red shadow-xl">
+            {error}
+          </p>
         )}
       </div>
     );
@@ -196,16 +212,11 @@ export function WalletButton() {
 
       {menuOpen && (
         <>
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setMenuOpen(false)}
-          />
+          <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
           <div className="absolute right-0 top-full z-50 mt-2 w-56 rounded-xl border border-border bg-popover p-1.5 shadow-2xl animate-pop">
             <div className="px-3 py-2">
               <p className="text-xs text-muted-foreground">Connected wallet</p>
-              <p className="truncate font-mono text-sm text-foreground">
-                {address}
-              </p>
+              <p className="truncate font-mono text-sm text-foreground">{address}</p>
             </div>
             <div className="mx-1.5 my-1 h-px bg-border" />
             <button

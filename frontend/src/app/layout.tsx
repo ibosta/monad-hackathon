@@ -5,11 +5,16 @@ import { Providers } from "@/components/providers";
 import { Navbar } from "@/components/navbar";
 import { AppHealth } from "@/components/app-health";
 
-const nunito = Nunito({ subsets: ["latin"], weight: ["400", "600", "700", "800", "900"], display: "swap" });
+const nunito = Nunito({
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "800", "900"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Moningo · Learn English, earn MON",
-  description: "Stake MON, finish daily English lessons, earn MON back and mint an on-chain CEFR certificate NFT on Monad.",
+  description:
+    "Stake MON, finish daily English lessons, earn MON back and mint an on-chain CEFR certificate NFT on Monad.",
 };
 
 export const viewport: Viewport = { themeColor: "#0b0620", width: "device-width", initialScale: 1 };
