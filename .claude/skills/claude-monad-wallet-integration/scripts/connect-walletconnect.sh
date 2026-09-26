@@ -1,27 +1,19 @@
 #!/bin/bash
+# wagmi + WalletConnect (Reown) ile Monad bağlantısı için örnek kod yazdırır.
+# Not: WalletConnect v1 (@walletconnect/client + bridge) kapatılmıştır, kullanmayın.
+cat <<'CODE'
+// npm install wagmi viem@^2.40 @tanstack/react-query
+import { createConfig, http } from "wagmi";
+import { monadTestnet } from "viem/chains";
+import { injected, walletConnect } from "wagmi/connectors";
 
-# WalletConnect ile Monad bağlantısı kurar
-echo "🔗 WalletConnect ile Monad bağlantısı kuruluyor..."
-
-# WalletConnect v2 için örnek kod
-WALLETCONNECT_CODE='
-import { WalletConnect } from "@walletconnect/client";
-
-const connector = new WalletConnect({
-  bridge: "https://bridge.walletconnect.org",
-  qrcodeModal: QRCodeModal,
+export const config = createConfig({
+  chains: [monadTestnet],
+  connectors: [
+    injected(),
+    walletConnect({ projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID }), // cloud.reown.com
+  ],
+  transports: { [monadTestnet.id]: http("https://testnet-rpc.monad.xyz") },
 });
-
-// Monad ağına bağlan
-connector.on("connect", (error, payload) => {
-  if (error) throw error;
-  console.log("✅ WalletConnect ile bağlantı kuruldu:", payload);
-});
-
-// Bağlantıyı başlat
-connector.createSession();
-'
-
-echo "WalletConnect entegrasyonu için örnek kod:"
-echo "$WALLETCONNECT_CODE"
-echo -e "\nDaha fazla bilgi için: https://docs.walletconnect.com"
+CODE
+echo -e "\nDaha fazla bilgi: https://wagmi.sh · https://docs.reown.com"

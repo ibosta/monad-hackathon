@@ -6,8 +6,8 @@ CONCEPT="$1"
 case "$CONCEPT" in
   "Monad async execution")
     echo "📖 Monad Async Execution:"
-    echo "- Monad, consensus ve execution katmanlarını ayırarak işlemleri paralel yürütür."
-    echo "- Block time: 0.3 saniye (Ethereum'da 12 saniye)."
+    echo "- Consensus ile execution birbirini beklemez; her biri bloğun tamamını kullanır."
+    echo "- Block time: 0.3 s, finality: 0.6 s (Ethereum: 12 s / ~13 dk)."
     echo "- Avantaj: Yüksek throughput (10,000+ TPS)."
     echo -e "\nKaynak: [references/monad-architecture.md](references/monad-architecture.md)"
     ;;
@@ -15,14 +15,14 @@ case "$CONCEPT" in
   "blockchain gas fees")
     echo "📖 Blockchain Gas Ücretleri:"
     echo "- Gas, işlemleri yürütmek için ödenen ücrettir."
-    echo "- Formül: Gas Limit * Gas Price (örn: 21,000 * 100 gwei = 0.0021 ETH)."
-    echo "- Monad'da gas ücretleri Ethereum'a göre ~10x daha ucuz."
+    echo "- Ethereum: kullanılan gas × gas price. Monad: gas LİMİTİ × gas price (limiti abartmayın)."
+    echo "- Monad 500M gas/s kapasiteyle ücretleri düşük tutar."
     echo -e "\nKaynak: [references/blockchain-basics.md](references/blockchain-basics.md)"
     ;;
   
   "MPC wallets")
     echo "📖 MPC Cüzdanlar:"
-    echo "- Özel anahtarları parçalara ayırarak güvenlik sağlar."
+    echo "- Özel anahtar hiç tek parça oluşmaz; parçalar birlikte imza hesaplar (multisig değildir)."
     echo "- Örnekler: ZenGo, Fireblocks, Coinbase WaaS."
     echo "- Monad entegrasyonu: MPC sağlayıcıların Monad RPC'lerini desteklemesi gerekir."
     echo -e "\nKaynak: [references/wallet-types.md](references/wallet-types.md)"

@@ -1,5 +1,7 @@
---- name: claude-monad-smart-contract description: Claude Code ile Monad üzerinde akıllı kontrat geliştirme ve deploy etme adımlarını sağlar. Foundry ve Hardhat entegrasyonu ile kontrat testleri yapar. Monad testnet/mainnet'e deploy eder. ---
-
+---
+name: claude-monad-smart-contract
+description: "Claude Code ile Monad üzerinde akıllı kontrat geliştirme ve deploy etme adımlarını sağlar. Foundry ve Hardhat entegrasyonu ile kontrat testleri yapar. Monad testnet/mainnet'e deploy eder."
+---
 # Ne Zaman Kullanılır
 - **Monad üzerinde akıllı kontrat geliştirmek istediğinizde**.
 - **Kontratları testnet/mainnet'e deploy etmek istediğinizde**.
@@ -7,9 +9,9 @@
 - **Monad'ın 256KB kontrat boyutu sınırından yararlanmak istediğinizde**.
 
 # Ne Zaman Kullanılmaz
-- **Frontend entegrasyonları için** (bu durumda `monad-wallet-integration` kullanın).
+- **Frontend entegrasyonları için** (bu durumda `claude-monad-wallet-integration` kullanın).
 - **Monad dışındaki blockchain'ler için kontrat geliştirme** (Ethereum, Solana, vb.).
-- **Hackathon projesi yönetimi için** (bu durumda `monad-hackathon-development` kullanın).
+- **Hackathon projesi yönetimi için** (bu durumda `claude-monad-hackathon-development` kullanın).
 
 # İş Akışı
 1. **Kontrat Geliştirme**: Solidity ile akıllı kontrat yazın.
@@ -32,3 +34,4 @@
 ```bash
 # Foundry ile kontrat testlerini çalıştırır
 ./scripts/test-contract.sh "MyContract.t.sol"
+```

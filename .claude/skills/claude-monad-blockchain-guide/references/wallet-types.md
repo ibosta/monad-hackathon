@@ -1,47 +1,34 @@
 # Cüzdan Türleri ve Monad Entegrasyonu
 
-## MetaMask
-- **Nedir?**: En popüler Ethereum ve EVM uyumlu cüzdan.
-- **Monad Entegrasyonu**:
-  - Monad testnet/mainnet ağını ekleyin:
-    ```json
-    {
-      "chainId": "0x1a4",
-      "chainName": "Monad Testnet",
-      "rpcUrls": ["https://rpc.testnet.monad.xyz"],
-      "nativeCurrency": {
-        "name": "MONAD",
-        "symbol": "MONAD",
-        "decimals": 18
-      }
-    }
-    ```
+## MetaMask (ve diğer injected cüzdanlar: Rabby, Phantom, OKX)
+Monad Testnet ağ parametreleri (`wallet_addEthereumChain`):
+```json
+{
+  "chainId": "0x279f",
+  "chainName": "Monad Testnet",
+  "rpcUrls": ["https://testnet-rpc.monad.xyz"],
+  "nativeCurrency": { "name": "Monad", "symbol": "MON", "decimals": 18 },
+  "blockExplorerUrls": ["https://testnet.monadexplorer.com"]
+}
+```
+Mainnet için `chainId: "0x8f"` (143) ve RPC olarak `https://rpc.monad.xyz` kullanılır.
 
-## WalletConnect
-- **Nedir?**: Mobil cüzdanlar için köprü protokolü.
-- **Monad Entegrasyonu**:
-  - WalletConnect v2 kullanarak Monad ağını destekleyin.
-  - Örnek bağlantı kodu:
-    ```javascript
-    import { WalletConnect } from "@walletconnect/client";
-    
-    const connector = new WalletConnect({
-      bridge: "https://bridge.walletconnect.org",
-      qrcodeModal: QRCodeModal,
-    });
-    ```
+## WalletConnect (Reown)
+- Mobil cüzdanları QR kod veya deep link ile bağlar.
+- WalletConnect v1 (`@walletconnect/client`, bridge sunucusu) **kapatıldı**, kullanmayın.
+- Güncel yol: **wagmi + viem** ile `walletConnect` connector'ı veya **Reown AppKit**. `projectId` için cloud.reown.com'dan ücretsiz kayıt gerekir.
 
 ## MPC Cüzdanlar (Multi-Party Computation)
-- **Nedir?**: Özel anahtarları parçalara ayırarak güvenlik sağlayan cüzdanlar.
+- Özel anahtar hiçbir zaman tek parça halinde bir araya gelmez. İmza, parçaları tutan taraflar tarafından birlikte hesaplanır.
 - **Örnekler**: ZenGo, Fireblocks, Coinbase WaaS.
-- **Monad Entegrasyonu**: MPC sağlayıcıların Monad RPC'lerini desteklemesi gerekir.
+- **Monad**: EVM uyumlu olduğu için özel chain ID ve RPC tanımlamak genellikle yeterlidir.
 
-## Passkey Cüzdanlar
-- **Nedir?**: Biyometrik kimlik doğrulama (Face ID, Touch ID) ile çalışan cüzdanlar.
-- **Monad'da Kullanım**: `mera` (Monad'ın passkey tabanlı cüzdanı).
+## Embedded ve Passkey Cüzdanlar
+- **mera** (Category Labs): EVM hesaplarını passkey'den türetir. Aynı passkey her girişte aynı hesabı üretir.
+- **Privy / Thirdweb**: E-posta veya sosyal girişle embedded cüzdan. Monad'ın React Native ve PWA şablonlarında hazır gelir.
 
 ---
 
 ### Kaynaklar
-- [Monad Docs - Cüzdanlar](https://docs.monad.xyz)
-- [WalletConnect Docs](https://docs.walletconnect.com)
+- [Monad Docs](https://docs.monad.xyz)
+- [wagmi](https://wagmi.sh) · [Reown AppKit](https://docs.reown.com)

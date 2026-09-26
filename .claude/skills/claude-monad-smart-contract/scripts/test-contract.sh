@@ -1,11 +1,11 @@
 #!/bin/bash
-
-# Foundry ile kontrat testlerini çalıştırır
-TEST_FILE="$1"
-
-echo "🧪 Kontrat testleri çalıştırılıyor: $TEST_FILE"
-
-# Foundry test komutu
-forge test --match-path "$TEST_FILE"
-
-echo "✅ Testler tamamlandı."
+# Foundry ile kontrat testlerini çalıştırır.
+# Kullanım: ./test-contract.sh [test/MyContract.t.sol]
+set -e
+if [[ -n "$1" ]]; then
+  echo "🧪 Testler: $1"
+  forge test --match-path "$1" -vv
+else
+  echo "🧪 Tüm testler"
+  forge test -vv
+fi

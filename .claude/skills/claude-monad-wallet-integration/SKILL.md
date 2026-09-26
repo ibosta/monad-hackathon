@@ -1,5 +1,7 @@
---- name: claude-monad-wallet-integration description: Claude Code ile Monad projelerine cüzdan entegrasyonu sağlar. MetaMask, WalletConnect ve MPC cüzdanlarla bağlantı kurma adımlarını otomatikleştirir. Monad testnet/mainnet ağ ayarlarını yapılandırır. ---
-
+---
+name: claude-monad-wallet-integration
+description: "Claude Code ile Monad projelerine cüzdan entegrasyonu sağlar. MetaMask, WalletConnect ve MPC cüzdanlarla bağlantı kurma adımlarını otomatikleştirir. Monad testnet/mainnet ağ ayarlarını yapılandırır."
+---
 # Ne Zaman Kullanılır
 - **Monad projesine MetaMask entegre etmek istediğinizde**.
 - **WalletConnect ile mobil cüzdan bağlantısı kurmak istediğinizde**.
@@ -8,8 +10,8 @@
 
 # Ne Zaman Kullanılmaz
 - **Monad dışındaki blockchain'ler için cüzdan entegrasyonu** (Ethereum, Solana, vb.).
-- **Backend entegrasyonları için** (bu durumda `monad-smart-contract` kullanın).
-- **Akıllı kontrat geliştirme sürecinde** (bu durumda `monad-smart-contract` kullanın).
+- **Backend entegrasyonları için** (bu durumda `claude-monad-smart-contract` kullanın).
+- **Akıllı kontrat geliştirme sürecinde** (bu durumda `claude-monad-smart-contract` kullanın).
 
 # İş Akışı
 1. **Cüzdan Seçimi**: MetaMask, WalletConnect veya MPC cüzdan seçin.
@@ -32,3 +34,4 @@
 ```bash
 # WalletConnect ile Monad bağlantısı kurar
 ./scripts/connect-walletconnect.sh
+```

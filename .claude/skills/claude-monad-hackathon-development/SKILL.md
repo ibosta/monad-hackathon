@@ -1,5 +1,7 @@
---- name: claude-monad-hackathon-development description: Claude Code ile Monad Blitz Hackathon projeleri için proje oluşturma, commit standartları, README güncelleme ve Dockerize otomasyonu sağlar. Hackathon kurallarına uygun commit mesajları, release yönetimi ve frontend/backend (Next.js + Nginx) Dockerize işlemlerini otomatikleştirir. ---
-
+---
+name: claude-monad-hackathon-development
+description: "Claude Code ile Monad Blitz Hackathon projeleri için proje oluşturma, commit standartları, README güncelleme ve Dockerize otomasyonu sağlar. Hackathon kurallarına uygun commit mesajları, release yönetimi ve frontend/backend (Next.js + Nginx) Dockerize işlemlerini otomatikleştirir."
+---
 # Ne Zaman Kullanılır
 - **Yeni bir Monad projesi oluştururken** (foundry.toml, Dockerfile, README gibi temel dosyaları ekler).
 - **Commit mesajlarını standartlaştırmak istediğinizde** (feat/fix/docs gibi prefix'ler zorunlu kılar).
@@ -8,7 +10,7 @@
 
 # Ne Zaman Kullanılmaz
 - **Monad dışındaki blockchain projeleri için** (Ethereum, Solana, vb.).
-- **Hackathon dışındaki genel geliştirme süreçleri için** (bu durumda `monad-development` skill'ini kullanın).
+- **Hackathon dışındaki genel geliştirme süreçleri için** (bu durumda `claude-monad-smart-contract` skill'ini kullanın).
 - **Manuel müdahale gerektiren özel Docker konfigürasyonlarında**.
 
 # Girdi Gereksinimleri
@@ -55,3 +57,4 @@
 ```bash
 # Frontend ve backend Docker imajlarını build eder
 ./scripts/dockerize-project.sh
+```

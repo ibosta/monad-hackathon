@@ -1,26 +1,41 @@
 # Monad Teknik Mimarisi
 
-## Async Execution
-- **Nedir?**: Monad, consensus ve execution katmanlarını ayırarak işlemleri paralel olarak yürütür.
-- **Avantajı**: Block time'ı 0.3 saniyeye düşürür ve throughput'u artırır.
-- **Karşılaştırma**: Ethereum'da consensus ve execution sırayla çalışır (12s block time).
+Hiçbiri kontrat değişikliği gerektirmez. Mevcut Solidity kodu aynen deploy edilir.
 
-## Parallel Execution
-- **Nedir?**: Aynı blok içindeki bağımsız işlemler paralel olarak yürütülür.
-- **Avantajı**: Aynı anda 10,000+ TPS işlenebilir.
-- **Örnek**: İki farklı cüzdanın transfer işlemleri aynı anda yürütülür.
+## Asynchronous Execution
+- **Nedir?**: Consensus (işlemlerin sırasına karar vermek) ile execution (işlemleri çalıştırmak) birbirini beklemez. Slaytlardaki benzetmeyle: garson sipariş almaya devam ederken mutfak bir önceki siparişleri pişirir.
+- **Avantajı**: Her iki iş de bloğun tamamını kendine ayırabilir. Blok süresi aynı kalırken (0.3 s) blok başına çok daha fazla iş yapılır.
+- **Karşılaştırma**: Ethereum'da execution, consensus sürecinin içine sıkışır (12 s blok).
+
+## Optimistic Parallel Execution
+- **Nedir?**: Bir bloktaki işlemler "çakışmıyor" varsayımıyla paralel çalıştırılır. Aynı state'e dokunan az sayıdaki işlem, doğru sırayla **yeniden çalıştırılır**.
+- **Sonuç**: Çıktı, işlemlerin tek tek sırayla çalıştırılmasıyla birebir aynıdır. Sıralama semantiği değişmez.
+- **Geliştirici ipucu**: Tek bir global sayaç veya slot'a herkesin yazdığı "hot slot" tasarımlarından kaçının. Kullanıcı başına mapping kullanmak paralelliği artırır.
 
 ## MonadBFT
-- **Nedir?**: Monad'ın consensus mekanizması (Byzantine Fault Tolerance).
-- **Avantajı**: 200+ validator ile yüksek güvenlik ve hız sağlar.
-- **Karşılaştırma**: Ethereum ~27,000 validator kullanır (daha yavaş finality).
+- **Nedir?**: Monad'ın BFT consensus'u. Validator'lar tek turda anlaşır ve blok **600 ms**'de final olur.
+- **Ölçek**: ~200 aktif validator, sıradan donanım.
+- **Yakında**: *Cadence*, yani birden fazla eşzamanlı proposer ve yoğun pipelining.
+
+## Raptorcast
+- Bloklar parçalara bölünür ve ağa paralel olarak yayılır.
 
 ## MonadDB
-- **Nedir?**: Blockchain verilerini optimize eden özel veritabanı.
-- **Avantajı**: Okuma/yazma işlemleri hızlanır, state büyümesi kontrol altında tutulur.
+- Blockchain state'i için özel olarak yazılmış bir veritabanı. State okuma darboğazını ortadan kaldırır.
+
+## JIT Compilation
+- Kontrat bytecode'u bir kez native koda derlenir ve sonraki çalıştırmalarda cache'ten çalışır.
+
+## Rakamlar (Monad vs Ethereum L1)
+| | Monad | Ethereum |
+|---|---|---|
+| Throughput | 500M gas/s | 5M gas/s |
+| Block time | 0.3 s | 12 s |
+| Finality | 0.6 s | ~13 dk |
+| TPS | 10.000 | ~28 |
 
 ---
 
 ### Kaynaklar
 - [Monad Docs](https://docs.monad.xyz)
-- [Monad 101 Slides](Monad%20Blitz%20İstanbul%20Sept%202026%20-%20Monad101%20Slides.md)
+- [Monad 101 Slides](../../../../Monad%20Blitz%20İstanbul%20Sept%202026%20-%20Monad101%20Slides.md)

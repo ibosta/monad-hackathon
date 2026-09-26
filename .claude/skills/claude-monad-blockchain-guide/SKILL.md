@@ -1,5 +1,7 @@
---- name: claude-monad-blockchain-guide description: Claude Code ile Monad blockchain ve genel blockchain kavramları hakkında bilgi sağlar. Cüzdanlar, RPC, akıllı kontratlar, gas ücretleri ve Monad'ın teknik detaylarını (async execution, parallel execution, MonadBFT) açıklar. ---
-
+---
+name: claude-monad-blockchain-guide
+description: "Claude Code ile Monad blockchain ve genel blockchain kavramları hakkında bilgi sağlar. Cüzdanlar, RPC, akıllı kontratlar, gas ücretleri ve Monad'ın teknik detaylarını (async execution, parallel execution, MonadBFT) açıklar."
+---
 # Ne Zaman Kullanılır
 - **Monad'ın teknik detaylarını öğrenmek istediğinizde** (async execution, parallel execution, MonadBFT).
 - **Blockchain temel kavramlarını anlamak istediğinizde** (cüzdanlar, gas, akıllı kontratlar, consensus mekanizmaları).
@@ -8,8 +10,8 @@
 
 # Ne Zaman Kullanılmaz
 - **Monad dışındaki blockchain'ler için** (Solana, Bitcoin, Cosmos, vb.).
-- **Hackathon projesi geliştirme sürecinde** (bu durumda `monad-hackathon-development` kullanın).
-- **Akıllı kontrat veya cüzdan entegrasyonu için** (bu durumda `monad-smart-contract` veya `monad-wallet-integration` kullanın).
+- **Hackathon projesi geliştirme sürecinde** (bu durumda `claude-monad-hackathon-development` kullanın).
+- **Akıllı kontrat veya cüzdan entegrasyonu için** (bu durumda `claude-monad-smart-contract` veya `claude-monad-wallet-integration` kullanın).
 
 # İş Akışı
 1. **Konu Seçimi**: Öğrenmek istediğiniz konuyu belirtin (örn: "Monad'ın async execution özelliği nedir?").
@@ -39,3 +41,4 @@
 ```bash
 # MPC cüzdanlar hakkında bilgi al
 ./scripts/explain-concept.sh "MPC wallets"
+```

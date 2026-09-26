@@ -1,5 +1,7 @@
---- name: claude-monad-research-assistant description: Claude Code ile Monad dökümanları ve kaynaklarına hızlı erişim sağlar. Monad Blitz Hackathon için gerekli bilgileri içerir. Monad RPC, faucet, akıllı kontrat örnekleri ve hackathon kuralları hakkında bilgi verir. ---
-
+---
+name: claude-monad-research-assistant
+description: "Claude Code ile Monad dökümanları ve kaynaklarına hızlı erişim sağlar. Monad Blitz Hackathon için gerekli bilgileri içerir. Monad RPC, faucet, akıllı kontrat örnekleri ve hackathon kuralları hakkında bilgi verir."
+---
 # Ne Zaman Kullanılır
 - **Monad dökümanlarına hızlı erişim istediğinizde**.
 - **Hackathon kuralları ve kaynakları hakkında bilgi almak istediğinizde**.
@@ -7,7 +9,7 @@
 - **Akıllı kontrat örneklerine ihtiyaç duyduğunuzda**.
 
 # Ne Zaman Kullanılmaz
-- **Proje geliştirme sürecinde** (bu durumda `monad-hackathon-development` kullanın).
+- **Proje geliştirme sürecinde** (bu durumda `claude-monad-hackathon-development` kullanın).
 - **Cüzdan veya akıllı kontrat entegrasyonu için** (bu durumda ilgili skill'leri kullanın).
 
 # İş Akışı
@@ -29,3 +31,4 @@ cat references/monad-docs.md | grep -A 5 "RPC"
 ```bash
 # Hackathon kurallarını göster
 cat references/hackathon-resources.md | grep -A 10 "Zorunlu Kurallar"
+```
