@@ -14,6 +14,16 @@ const streak = load("streak");
 const badges = load("badges");
 
 const DUELS_PER_DAY = 5;
+
+/** Mirrors Moningo.rewardFor: daily reward (MON) for a given streak day. */
+function dailyRewardAt(streak) {
+  if (streak >= 1000) return "0.03";
+  if (streak >= 365) return "0.025";
+  if (streak >= 100) return "0.02";
+  if (streak >= 30) return "0.015";
+  if (streak >= 7) return "0.01";
+  return "0.005";
+}
 const BADGES = [
   { id: 1, name: "10-Day Streak", kind: "streak", threshold: 10 },
   { id: 2, name: "50-Day Streak", kind: "streak", threshold: 50 },
@@ -88,6 +98,7 @@ function achievementsRouter(prisma) {
       const current = onchain?.streak ?? 0;
       const nodes = ms.map((m, i) => ({
         ...m,
+        dailyReward: dailyRewardAt(m.day),
         reached: current >= m.day,
         claimed: claimed[i]?.status === "success" && claimed[i].result,
       }));
@@ -95,7 +106,7 @@ function achievementsRouter(prisma) {
       res.json({
         contract: streak.address,
         streak: current,
-        dailyReward: "0.05",
+        dailyReward: onchain?.nextReward ?? "0.005",
         milestones: nodes,
         next,
         daysToNext: next ? next.day - current : 0,
@@ -166,4 +177,12 @@ function achievementsRouter(prisma) {
   return r;
 }
 
-module.exports = { achievementsRouter, duelWinStreaks, duelsToday, DUELS_PER_DAY, streak, badges };
+module.exports = {
+  dailyRewardAt,
+  achievementsRouter,
+  duelWinStreaks,
+  duelsToday,
+  DUELS_PER_DAY,
+  streak,
+  badges,
+};

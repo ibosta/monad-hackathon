@@ -74,3 +74,17 @@ test("practice levels have stable, valid questions", () => {
   }
   assert.deepEqual(questionsForLevel(7), questionsForLevel(7));
 });
+
+test("backend reward tiers mirror Moningo.rewardFor", () => {
+  const { dailyRewardAt } = require("../src/achievements");
+  const cases = [
+    [1, "0.005"],
+    [6, "0.005"],
+    [7, "0.01"],
+    [30, "0.015"],
+    [100, "0.02"],
+    [365, "0.025"],
+    [1000, "0.03"],
+  ];
+  for (const [streak, reward] of cases) assert.equal(dailyRewardAt(streak), reward);
+});

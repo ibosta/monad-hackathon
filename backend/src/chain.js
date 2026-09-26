@@ -1,4 +1,4 @@
-const { createPublicClient, http, isAddress, getAddress } = require("viem");
+const { createPublicClient, http, isAddress, getAddress, formatEther } = require("viem");
 const { privateKeyToAccount } = require("viem/accounts");
 const { monadTestnet, hardhat } = require("viem/chains");
 const deployment = require("./contract/moningo.json");
@@ -29,16 +29,17 @@ function ready() {
 
 async function getOnchainUser(address) {
   if (!ready()) return null;
-  const [streak, stakedAt, active, certificateId, level, examPaid] = await client.readContract({
-    address: CONTRACT_ADDRESS,
-    abi,
-    functionName: "getUser",
-    args: [getAddress(address)],
-  });
+  const [streak, claimedToday, nextReward, certificateId, level, examPaid] =
+    await client.readContract({
+      address: CONTRACT_ADDRESS,
+      abi,
+      functionName: "getUser",
+      args: [getAddress(address)],
+    });
   return {
     streak: Number(streak),
-    stakedAt: Number(stakedAt),
-    active,
+    claimedToday,
+    nextReward: formatEther(nextReward),
     certificateId: Number(certificateId),
     level: Number(level),
     examPaid,
@@ -55,12 +56,12 @@ async function getPool() {
   return pool.toString();
 }
 
-/** Signs the contract's taskDigest(user) so the user can call completeEnglishTask(signature). */
+/** Signs today's dailyDigest(user) so the user can call completeDaily(signature). */
 async function signCompletion(address) {
   const digest = await client.readContract({
     address: CONTRACT_ADDRESS,
     abi,
-    functionName: "taskDigest",
+    functionName: "dailyDigest",
     args: [getAddress(address)],
   });
   return verifier.signMessage({ message: { raw: digest } });

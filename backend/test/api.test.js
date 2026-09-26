@@ -47,7 +47,10 @@ test("health and config", async () => {
   assert.equal(h.body.ok, true);
   const c = await get("/api/config");
   assert.equal(c.body.chainId, 10143);
-  assert.equal(c.body.dailyStake, "0.1");
+  assert.deepEqual(
+    c.body.rewardTiers.map((t) => t.from),
+    [1, 7, 30, 100, 365, 1000]
+  );
   assert.ok(Array.isArray(c.body.abi));
 });
 

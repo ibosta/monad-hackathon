@@ -39,8 +39,15 @@ app.get(
       explorerUrl: chain.EXPLORER_URL,
       faucetUrl: "https://faucet.monad.xyz",
       contractAddress: chain.CONTRACT_ADDRESS,
-      dailyStake: "0.1",
-      reward: "0.05",
+      // Daily reward tiers by streak (mirrors Moningo.rewardFor)
+      rewardTiers: [
+        { from: 1, reward: "0.005" },
+        { from: 7, reward: "0.01" },
+        { from: 30, reward: "0.015" },
+        { from: 100, reward: "0.02" },
+        { from: 365, reward: "0.025" },
+        { from: 1000, reward: "0.03" },
+      ],
       examFee: "0.05",
       rewardPool: pool ? formatEther(BigInt(pool)) : null,
       lessonsPerDay: LESSONS_PER_DAY,
@@ -150,25 +157,13 @@ app.post(
   })
 );
 
-/** One reward per UTC day; re-signing the same stake is allowed so a failed tx can be retried. */
+/** The contract enforces one claim per UTC day; the backend only attests the lessons are done. */
 async function issueSignature(address) {
   if (!chain.ready() || !chain.verifier)
     return { signature: null, claimError: "Contract/verifier not configured" };
   const onchain = await chain.getOnchainUser(address);
-  if (!onchain.active)
-    return {
-      signature: null,
-      claimError: "No active stake: call startStreak() with 0.1 MON first",
-    };
-  const user = await prisma.user.findUnique({ where: { walletAddress: address } });
-  const day = today();
-  if (user.lastSignedDay === day && user.lastSignedStake !== onchain.stakedAt) {
+  if (onchain.claimedToday)
     return { signature: null, claimError: "Today's reward already claimed. Come back tomorrow!" };
-  }
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { lastSignedDay: day, lastSignedStake: onchain.stakedAt },
-  });
   return { signature: await chain.signCompletion(address), claimError: null };
 }
 
@@ -244,7 +239,7 @@ app.get(
       lessonsCompleted: user?.lessonsCompleted ?? 0,
       todayProgress,
       completedToday: todayProgress.filter((p) => p.score > 0).length >= LESSONS_PER_DAY,
-      rewardSignedToday: user?.lastSignedDay === today(),
+      claimedToday: Boolean(onchain?.claimedToday),
       onchain,
     });
   })
