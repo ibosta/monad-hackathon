@@ -305,7 +305,13 @@ app.get(
   wrap(async (req, res) => {
     if (!isAddress(req.params.address))
       return res.status(400).json({ success: false, message: "Invalid address" });
-    res.json(await chain.getCertificates(getAddress(req.params.address)));
+    try {
+      res.json(await chain.getCertificates(getAddress(req.params.address)));
+    } catch (err) {
+      if (err instanceof chain.RpcUnavailableError)
+        return res.status(503).json({ success: false, message: err.message });
+      throw err;
+    }
   })
 );
 

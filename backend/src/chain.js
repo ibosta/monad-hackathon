@@ -135,9 +135,17 @@ function decodeTokenURI(uri) {
 // Certificates are soulbound and immutable -> safe to cache forever.
 const certCache = new Map();
 
+class RpcUnavailableError extends Error {}
+
+/**
+ * All certificate NFTs owned by `owner`. Token ids are sequential and certificates are soulbound
+ * (immutable), so each token is read once and cached forever. If the RPC is rate limited and the
+ * answer would be incomplete, throws RpcUnavailableError instead of returning a misleading list.
+ */
 async function getCertificates(owner) {
   if (!ready()) return [];
   let next;
+  let incomplete = false;
   try {
     next = await cached("nextTokenId", 5_000, async () =>
       Number(
@@ -145,35 +153,21 @@ async function getCertificates(owner) {
       )
     );
   } catch (err) {
-    // RPC unavailable and nothing cached yet: answer with what we know instead of a 500.
     console.warn(`[chain] certificates: ${err.shortMessage || err.message}`);
-    next = Math.max(1, ...[...certCache.keys()].map((id) => id + 1));
+    throw new RpcUnavailableError("Monad RPC is busy, try again in a few seconds");
   }
   const missing = [];
   for (let id = 1; id < next; id++) if (!certCache.has(id)) missing.push(BigInt(id));
   if (missing.length) {
-    const owners = (
-      await readMany(
-        missing.map((id) => ({
-          address: CONTRACT_ADDRESS,
-          abi,
-          functionName: "ownerOf",
-          args: [id],
-        }))
-      )
-    ).map((r) => r.result);
-    const uris = (
-      await readMany(
-        missing.map((id) => ({
-          address: CONTRACT_ADDRESS,
-          abi,
-          functionName: "tokenURI",
-          args: [id],
-        }))
-      )
-    ).map((r) => r.result);
+    const read = (functionName) =>
+      readMany(missing.map((id) => ({ address: CONTRACT_ADDRESS, abi, functionName, args: [id] })));
+    const owners = (await read("ownerOf")).map((r) => r.result);
+    const uris = (await read("tokenURI")).map((r) => r.result);
     missing.forEach((id, i) => {
-      if (!owners[i] || !uris[i]) return; // failed read: retry on the next request, don't cache
+      if (!owners[i] || !uris[i]) {
+        incomplete = true; // failed read: don't cache, retry next time
+        return;
+      }
       certCache.set(Number(id), {
         tokenId: Number(id),
         owner: owners[i],
@@ -182,9 +176,12 @@ async function getCertificates(owner) {
       });
     });
   }
-  return [...certCache.values()]
+  const mine = [...certCache.values()]
     .filter((c) => c.owner.toLowerCase() === owner.toLowerCase())
     .sort((a, b) => b.tokenId - a.tokenId);
+  if (incomplete && mine.length === 0)
+    throw new RpcUnavailableError("Monad RPC is busy, try again in a few seconds");
+  return mine;
 }
 
 async function getCertificate(tokenId) {
@@ -217,6 +214,7 @@ async function readMany(contracts) {
 }
 
 module.exports = {
+  RpcUnavailableError,
   readMany,
   CONTRACTS_DIR,
   getCertificates,
