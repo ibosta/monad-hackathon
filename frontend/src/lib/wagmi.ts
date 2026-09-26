@@ -15,13 +15,19 @@ export const wagmiConfig = createConfig({
   chains: [monadTestnet],
   connectors: [injected({ shimDisconnect: true })],
   ssr: true,
-  storage: createStorage({ storage: typeof window !== "undefined" ? window.localStorage : undefined }),
+  storage: createStorage({
+    storage: typeof window !== "undefined" ? window.localStorage : undefined,
+  }),
   // The public Monad RPC is rate limited (HTTP 429): merge reads into multicalls and
   // JSON-RPC batches, poll gently and back off on errors.
   batch: { multicall: { wait: 32 } },
   pollingInterval: 2_000,
   transports: {
-    [monadTestnet.id]: http(RPC_URL, { batch: { wait: 20, batchSize: 20 }, retryCount: 4, retryDelay: 600 }),
+    [monadTestnet.id]: http(RPC_URL, {
+      batch: { wait: 20, batchSize: 20 },
+      retryCount: 4,
+      retryDelay: 600,
+    }),
   },
   multiInjectedProviderDiscovery: true,
 });

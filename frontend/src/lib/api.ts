@@ -44,7 +44,13 @@ export type StreakTree = {
   contract: string;
   streak: number;
   dailyReward: string;
-  milestones: { day: number; reward: string; dailyReward: string; reached: boolean; claimed: boolean }[];
+  milestones: {
+    day: number;
+    reward: string;
+    dailyReward: string;
+    reached: boolean;
+    claimed: boolean;
+  }[];
   next: { day: number; reward: string } | null;
   daysToNext: number;
 };
