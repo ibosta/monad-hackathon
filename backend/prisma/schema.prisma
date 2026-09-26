@@ -19,6 +19,40 @@ model User {
   updatedAt        DateTime   @updatedAt
   progress         Progress[]
   levelTests       LevelTest[]
+  // Practice map
+  practiceLevel    Int        @default(0) // highest completed level
+  energy           Int        @default(10)
+  energyUpdatedAt  DateTime   @default(now())
+  practiceStars    PracticeStar[]
+}
+
+model PracticeStar {
+  id     Int  @id @default(autoincrement())
+  userId Int
+  level  Int
+  stars  Int
+  user   User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, level])
+}
+
+model EnergyPurchase {
+  txHash    String   @id
+  address   String
+  energy    Int
+  createdAt DateTime @default(now())
+}
+
+model DuelResult {
+  matchId   String   @id
+  p1        String
+  p2        String
+  winner    String? // null = draw / cancelled
+  scoreP1   Int
+  scoreP2   Int
+  txHash    String?
+  vsBot     Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model LevelTest {

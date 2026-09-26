@@ -15,7 +15,8 @@
     "@prisma/client": "^6.19.3",
     "cors": "^2.8.6",
     "express": "^4.22.3",
-    "viem": "^2.56.9"
+    "viem": "^2.56.9",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "eslint": "^8.57.1",
