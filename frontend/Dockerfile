@@ -1,7 +1,7 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 COPY . .
 # NEXT_PUBLIC_* are inlined into the bundle at build time
 ARG NEXT_PUBLIC_BACKEND_URL=http://localhost:5001
