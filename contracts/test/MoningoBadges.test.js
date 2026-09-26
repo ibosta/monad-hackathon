@@ -1,6 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-const { loadFixture } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
+const { loadFixture, time } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 
 describe("MoningoBadges", () => {
   async function deploy() {
@@ -13,11 +13,11 @@ describe("MoningoBadges", () => {
     ]);
     const completeDays = async (user, n) => {
       for (let i = 0; i < n; i++) {
-        await moningo.connect(user).startStreak({ value: ethers.parseEther("0.1") });
         const sig = await verifier.signMessage(
-          ethers.getBytes(await moningo.taskDigest(user.address))
+          ethers.getBytes(await moningo.dailyDigest(user.address))
         );
-        await moningo.connect(user).completeEnglishTask(sig);
+        await moningo.connect(user).completeDaily(sig);
+        await time.increase(86400);
       }
     };
     const signBadge = async (user, id, signer = verifier) =>
