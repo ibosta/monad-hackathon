@@ -8,7 +8,11 @@ const EXPLORER_URL = "https://testnet.monadexplorer.com";
 const CONTRACT_ADDRESS = process.env.MONINGO_ADDRESS || deployment.address || null;
 const { abi } = deployment;
 
-const client = createPublicClient({ chain: monadTestnet, transport: http(RPC_URL) });
+// Public Monad RPC is rate limited (15 req/s): batch calls and retry with backoff.
+const client = createPublicClient({
+  chain: monadTestnet,
+  transport: http(RPC_URL, { batch: { batchSize: 10, wait: 16 }, retryCount: 6, retryDelay: 350 }),
+});
 
 const verifier = /^0x[0-9a-fA-F]{64}$/.test(process.env.VERIFIER_PRIVATE_KEY || "")
   ? privateKeyToAccount(process.env.VERIFIER_PRIVATE_KEY)
@@ -64,7 +68,52 @@ async function signExam(address, level) {
   return verifier.signMessage({ message: { raw: digest } });
 }
 
+function decodeTokenURI(uri) {
+  const json = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
+  const attr = Object.fromEntries((json.attributes || []).map((a) => [a.trait_type, a.value]));
+  return { name: json.name, description: json.description, image: json.image, level: attr.Level, dailyLessons: attr["Daily lessons"] };
+}
+
+/** All certificate NFTs owned by `owner` (token ids are sequential, so a multicall over ownerOf is enough). */
+// Certificates are soulbound and immutable -> safe to cache forever.
+const certCache = new Map();
+
+async function getCertificates(owner) {
+  if (!ready()) return [];
+  const next = Number(await client.readContract({ address: CONTRACT_ADDRESS, abi, functionName: "nextTokenId" }));
+  const missing = [];
+  for (let id = 1; id < next; id++) if (!certCache.has(id)) missing.push(BigInt(id));
+  if (missing.length) {
+    const owners = await client.multicall({
+      contracts: missing.map((id) => ({ address: CONTRACT_ADDRESS, abi, functionName: "ownerOf", args: [id] })),
+      allowFailure: false,
+    });
+    const uris = await client.multicall({
+      contracts: missing.map((id) => ({ address: CONTRACT_ADDRESS, abi, functionName: "tokenURI", args: [id] })),
+      allowFailure: false,
+    });
+    missing.forEach((id, i) =>
+      certCache.set(Number(id), { tokenId: Number(id), owner: owners[i], contract: CONTRACT_ADDRESS, ...decodeTokenURI(uris[i]) })
+    );
+  }
+  return [...certCache.values()].filter((c) => c.owner.toLowerCase() === owner.toLowerCase()).sort((a, b) => b.tokenId - a.tokenId);
+}
+
+async function getCertificate(tokenId) {
+  if (certCache.has(tokenId)) return certCache.get(tokenId);
+  const id = BigInt(tokenId);
+  const [owner, uri] = await Promise.all([
+    client.readContract({ address: CONTRACT_ADDRESS, abi, functionName: "ownerOf", args: [id] }),
+    client.readContract({ address: CONTRACT_ADDRESS, abi, functionName: "tokenURI", args: [id] }),
+  ]);
+  const cert = { tokenId: Number(id), owner, contract: CONTRACT_ADDRESS, ...decodeTokenURI(uri) };
+  certCache.set(Number(id), cert);
+  return cert;
+}
+
 module.exports = {
+  getCertificates,
+  getCertificate,
   signExam,
   abi,
   client,

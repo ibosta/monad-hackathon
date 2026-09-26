@@ -124,8 +124,14 @@ async function issueSignature(address) {
   return { signature: await chain.signCompletion(address), claimError: null };
 }
 
-app.get("/api/level-test", (_req, res) => {
-  res.json({ fee: "0.05", questions: levelTest.publicQuestions() });
+// Served exam per wallet, so grading only counts the questions this user actually got.
+const examSessions = new Map(); // address -> { ids, at }
+
+app.get("/api/level-test", (req, res) => {
+  const questions = levelTest.drawExam();
+  const address = req.query.address;
+  if (isAddress(address || "")) examSessions.set(getAddress(address), { ids: questions.map((q) => q.id), at: Date.now() });
+  res.json({ fee: "0.05", questions });
 });
 
 /** Body: { walletAddress, answers: { [questionId]: "chosen option" } } */
@@ -134,7 +140,10 @@ app.post("/api/level-test/submit", wrap(async (req, res) => {
   if (!isAddress(walletAddress || "")) return res.status(400).json({ success: false, message: "Invalid walletAddress" });
   if (!answers || typeof answers !== "object") return res.status(400).json({ success: false, message: "answers object required" });
   const address = getAddress(walletAddress);
-  const result = levelTest.grade(answers);
+  const session = examSessions.get(address);
+  if (!session) return res.status(400).json({ success: false, message: "Start the test first (GET /api/level-test?address=…)" });
+  examSessions.delete(address);
+  const result = levelTest.grade(session.ids, answers);
 
   const user = await prisma.user.upsert({ where: { walletAddress: address }, update: {}, create: { walletAddress: address } });
   await prisma.levelTest.create({ data: { userId: user.id, correct: result.correct, level: result.level } });
@@ -168,6 +177,22 @@ app.get("/api/users/:address", wrap(async (req, res) => {
     rewardSignedToday: user?.lastSignedDay === today(),
     onchain,
   });
+}));
+
+app.get("/api/certificates/:address", wrap(async (req, res) => {
+  if (!isAddress(req.params.address)) return res.status(400).json({ success: false, message: "Invalid address" });
+  res.json(await chain.getCertificates(getAddress(req.params.address)));
+}));
+
+/** Public verification: anyone can check a certificate by token id. */
+app.get("/api/certificate/:tokenId", wrap(async (req, res) => {
+  const id = Number(req.params.tokenId);
+  if (!Number.isInteger(id) || id < 1) return res.status(400).json({ success: false, message: "Invalid token id" });
+  try {
+    res.json({ valid: true, ...(await chain.getCertificate(id)) });
+  } catch {
+    res.status(404).json({ valid: false, message: "Certificate not found on-chain" });
+  }
 }));
 
 app.get("/api/leaderboard", wrap(async (_req, res) => {
