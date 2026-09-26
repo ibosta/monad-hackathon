@@ -1,7 +1,7 @@
 // Streak tree (MoningoStreakRewards) + achievement badges (MoningoBadges) + duel win streaks.
 const express = require("express");
 const { isAddress, getAddress, formatEther } = require("viem");
-const { client, verifier, getOnchainUser } = require("./chain");
+const { client, verifier, getOnchainUser, readMany } = require("./chain");
 
 const load = (name) => {
   try {
@@ -85,15 +85,14 @@ function achievementsRouter(prisma) {
         getOnchainUser(address).catch(() => null),
       ]);
       const claimed = ms.length
-        ? await client.multicall({
-            contracts: ms.map((m) => ({
+        ? await readMany(
+            ms.map((m) => ({
               address: streak.address,
               abi: streak.abi,
               functionName: "claimed",
               args: [address, BigInt(m.day)],
-            })),
-            allowFailure: true,
-          })
+            }))
+          )
         : [];
       const current = onchain?.streak ?? 0;
       const nodes = ms.map((m, i) => ({
@@ -124,15 +123,14 @@ function achievementsRouter(prisma) {
         duelWinStreaks(prisma, address),
       ]);
       const owned = badges.address
-        ? await client.multicall({
-            contracts: BADGES.map((b) => ({
+        ? await readMany(
+            BADGES.map((b) => ({
               address: badges.address,
               abi: badges.abi,
               functionName: "badgeToken",
               args: [address, BigInt(b.id)],
-            })),
-            allowFailure: true,
-          })
+            }))
+          )
         : [];
       const list = BADGES.map((b, i) => {
         const progress = b.kind === "streak" ? (onchain?.streak ?? 0) : duel.best;

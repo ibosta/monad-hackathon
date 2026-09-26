@@ -2,7 +2,7 @@
 // MON energy packs (MoningoPractice.buyEnergy) and signed checkpoint rewards every 10 levels.
 const express = require("express");
 const { isAddress, getAddress, decodeEventLog } = require("viem");
-const { client, verifier, ready } = require("./chain");
+const { client, verifier, ready, readMany } = require("./chain");
 const { practice } = require("./signer");
 const { POOL, seeded } = require("./lessons");
 const { QUESTIONS: EXAM } = require("./level-test");
@@ -55,15 +55,14 @@ function practiceRouter(prisma) {
     const levels = [];
     for (let l = CHECKPOINT_EVERY; l <= reached; l += CHECKPOINT_EVERY) levels.push(l);
     if (!levels.length || !practice.address || !ready()) return {};
-    const res = await client.multicall({
-      contracts: levels.map((l) => ({
+    const res = await readMany(
+      levels.map((l) => ({
         address: practice.address,
         abi: practice.abi,
         functionName: "checkpointClaimed",
         args: [address, BigInt(l)],
-      })),
-      allowFailure: true,
-    });
+      }))
+    );
     return Object.fromEntries(
       levels.map((l, i) => [l, res[i].status === "success" && res[i].result])
     );

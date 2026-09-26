@@ -105,32 +105,35 @@ async function getCertificates(owner) {
   const missing = [];
   for (let id = 1; id < next; id++) if (!certCache.has(id)) missing.push(BigInt(id));
   if (missing.length) {
-    const owners = await client.multicall({
-      contracts: missing.map((id) => ({
-        address: CONTRACT_ADDRESS,
-        abi,
-        functionName: "ownerOf",
-        args: [id],
-      })),
-      allowFailure: false,
-    });
-    const uris = await client.multicall({
-      contracts: missing.map((id) => ({
-        address: CONTRACT_ADDRESS,
-        abi,
-        functionName: "tokenURI",
-        args: [id],
-      })),
-      allowFailure: false,
-    });
-    missing.forEach((id, i) =>
+    const owners = (
+      await readMany(
+        missing.map((id) => ({
+          address: CONTRACT_ADDRESS,
+          abi,
+          functionName: "ownerOf",
+          args: [id],
+        }))
+      )
+    ).map((r) => r.result);
+    const uris = (
+      await readMany(
+        missing.map((id) => ({
+          address: CONTRACT_ADDRESS,
+          abi,
+          functionName: "tokenURI",
+          args: [id],
+        }))
+      )
+    ).map((r) => r.result);
+    missing.forEach((id, i) => {
+      if (!owners[i] || !uris[i]) return; // failed read: retry on the next request, don't cache
       certCache.set(Number(id), {
         tokenId: Number(id),
         owner: owners[i],
         contract: CONTRACT_ADDRESS,
         ...decodeTokenURI(uris[i]),
-      })
-    );
+      });
+    });
   }
   return [...certCache.values()]
     .filter((c) => c.owner.toLowerCase() === owner.toLowerCase())
@@ -149,7 +152,25 @@ async function getCertificate(tokenId) {
   return cert;
 }
 
+/**
+ * Multicall with a fallback to individual (transport-batched) reads, for chains without multicall3.
+ * Returns viem-style { status, result } entries.
+ */
+async function readMany(contracts) {
+  try {
+    return await client.multicall({ contracts, allowFailure: true });
+  } catch {
+    const settled = await Promise.allSettled(contracts.map((c) => client.readContract(c)));
+    return settled.map((s) =>
+      s.status === "fulfilled"
+        ? { status: "success", result: s.value }
+        : { status: "failure", error: s.reason }
+    );
+  }
+}
+
 module.exports = {
+  readMany,
   CONTRACTS_DIR,
   getCertificates,
   getCertificate,
