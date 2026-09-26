@@ -66,8 +66,8 @@ export default function HomePage() {
               </h1>
               <p className="text-balance text-monad-100/80">
                 Finish 3 bite-sized lessons a day and earn MON. The longer your streak, the more you
-                earn: from <b>0.005</b> up to <b>0.03 MON</b> per day. Prove your level to mint an on-chain CEFR certificate NFT.
-                Settled on Monad in under a second.
+                earn: from <b>0.005</b> up to <b>0.03 MON</b> per day. Prove your level to mint an
+                on-chain CEFR certificate NFT. Settled on Monad in under a second.
               </p>
               <div className="flex flex-wrap justify-center gap-3 pt-2 md:justify-start">
                 {connected ? (
@@ -141,7 +141,8 @@ export default function HomePage() {
             />
             {upcoming && (
               <p className="rounded-2xl bg-monad-900/60 px-4 py-2 text-sm font-bold text-monad-200">
-                🔥 {upcoming.from - todayStreak} more day{upcoming.from - todayStreak === 1 ? "" : "s"} →{" "}
+                🔥 {upcoming.from - todayStreak} more day
+                {upcoming.from - todayStreak === 1 ? "" : "s"} →{" "}
                 <span className="text-yellow-300">+{upcoming.reward} MON</span> every day
               </p>
             )}

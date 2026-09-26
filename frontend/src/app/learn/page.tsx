@@ -256,7 +256,8 @@ export default function LearnPage() {
                 🔥 {user?.streak ?? 0} day streak
               </motion.p>
               <p className="font-bold text-monad-100">
-                Tomorrow: <span className="text-yellow-300">+{rewardFor((user?.streak ?? 0) + 1)} MON</span>
+                Tomorrow:{" "}
+                <span className="text-yellow-300">+{rewardFor((user?.streak ?? 0) + 1)} MON</span>
               </p>
               <div className="flex flex-wrap justify-center gap-3">
                 <Link href="/streak" className="btn-ghost-3d">
@@ -271,7 +272,9 @@ export default function LearnPage() {
           {stage === "lessons" && (
             <Hub
               mood="happy"
-              title={doneIds.size ? `${doneIds.size}/${total} lessons done` : "Ready for today's lesson?"}
+              title={
+                doneIds.size ? `${doneIds.size}/${total} lessons done` : "Ready for today's lesson?"
+              }
               text={`Finish ${total} short lessons to earn +${todayReward} MON and grow your streak to day ${todayStreak}. No stake needed.`}
             >
               <RewardLadder streak={todayStreak} />
@@ -318,7 +321,8 @@ function RewardLadder({ streak }: { streak: number }) {
             />
           </div>
           <p className="mt-1 text-xs text-monad-300">
-            {upcoming.from - streak} more day{upcoming.from - streak === 1 ? "" : "s"} → +{upcoming.reward} MON / day
+            {upcoming.from - streak} more day{upcoming.from - streak === 1 ? "" : "s"} → +
+            {upcoming.reward} MON / day
           </p>
         </>
       )}

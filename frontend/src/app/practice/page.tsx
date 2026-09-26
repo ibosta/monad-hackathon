@@ -69,13 +69,21 @@ export default function PracticePage() {
     );
   }
 
-  const refresh = () => Promise.all([refetch(), qc.invalidateQueries({ queryKey: ["practice", address] })]);
+  const refresh = () =>
+    Promise.all([refetch(), qc.invalidateQueries({ queryKey: ["practice", address] })]);
 
   const startLevel = async (level: number) => {
     setBusy(`level-${level}`);
     try {
       const r = await api.practiceStart(address, level);
-      setPlay({ level, questions: r.questions, index: 0, selected: null, feedback: null, wrongPulse: 0 });
+      setPlay({
+        level,
+        questions: r.questions,
+        index: 0,
+        selected: null,
+        feedback: null,
+        wrongPulse: 0,
+      });
       refresh();
     } catch (e) {
       if (e instanceof Error && /energy/i.test(e.message)) setNoEnergy(true);
@@ -136,13 +144,19 @@ export default function PracticePage() {
     const last = play.index === play.questions.length - 1;
     const states: Record<string, string | undefined> = {};
     for (const o of q.options) {
-      if (play.feedback) states[o] = o === play.feedback.answer ? "correct" : o === play.selected ? "wrong" : undefined;
+      if (play.feedback)
+        states[o] =
+          o === play.feedback.answer ? "correct" : o === play.selected ? "wrong" : undefined;
       else if (o === play.selected) states[o] = "selected";
     }
     const check = async () => {
       if (!play.selected) return;
       const r = await api.practiceAnswer(address, q.id, play.selected);
-      setPlay({ ...play, feedback: r, wrongPulse: r.correct ? play.wrongPulse : play.wrongPulse + 1 });
+      setPlay({
+        ...play,
+        feedback: r,
+        wrongPulse: r.correct ? play.wrongPulse : play.wrongPulse + 1,
+      });
     };
     const next = async () => {
       if (!last) return setPlay({ ...play, index: play.index + 1, selected: null, feedback: null });
@@ -154,13 +168,19 @@ export default function PracticePage() {
     return (
       <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col">
         <div className="mb-8 flex items-center gap-4">
-          <button onClick={() => setPlay(null)} aria-label="Quit" className="text-monad-300 hover:text-white">
+          <button
+            onClick={() => setPlay(null)}
+            aria-label="Quit"
+            className="text-monad-300 hover:text-white"
+          >
             <X className="h-6 w-6" />
           </button>
           <div className="h-4 flex-1 overflow-hidden rounded-full bg-monad-900">
             <motion.div
               className="h-full rounded-full bg-gradient-to-r from-monad to-berry-400"
-              animate={{ width: `${((play.index + (play.feedback ? 1 : 0)) / play.questions.length) * 100}%` }}
+              animate={{
+                width: `${((play.index + (play.feedback ? 1 : 0)) / play.questions.length) * 100}%`,
+              }}
               transition={spring}
             />
           </div>
@@ -184,7 +204,10 @@ export default function PracticePage() {
           }
         >
           {play.feedback ? (
-            <button onClick={next} className={cn("w-full", play.feedback.correct ? "btn-green" : "btn-berry")}>
+            <button
+              onClick={next}
+              className={cn("w-full", play.feedback.correct ? "btn-green" : "btn-berry")}
+            >
               {last ? "Finish level" : "Continue"}
             </button>
           ) : (
@@ -209,7 +232,10 @@ export default function PracticePage() {
       <Modal open={Boolean(finish)} onClose={() => setFinish(null)}>
         {finish && (
           <>
-            <Confetti fire={finish.passed ? `lvl-${finish.level}-${finish.stars}` : null} count={40} />
+            <Confetti
+              fire={finish.passed ? `lvl-${finish.level}-${finish.stars}` : null}
+              count={40}
+            />
             <Mascot size={110} mood={finish.passed ? "cheer" : "sad"} />
             <h2 className="metal-text text-2xl font-black sm:text-3xl">
               {finish.passed ? `Level ${finish.level} complete!` : "Almost there!"}
@@ -220,7 +246,12 @@ export default function PracticePage() {
                   key={i}
                   initial={{ scale: 0, rotate: -120 }}
                   animate={{ scale: 1, rotate: 0 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 12, delay: 0.25 + i * 0.18 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 260,
+                    damping: 12,
+                    delay: 0.25 + i * 0.18,
+                  }}
                 >
                   <Star
                     className={cn(
@@ -260,7 +291,10 @@ export default function PracticePage() {
                 {finish.passed ? "Next level (1 ⚡)" : "Try again (1 ⚡)"}
               </button>
             )}
-            <button onClick={() => setFinish(null)} className="text-sm font-bold text-monad-300 hover:text-white">
+            <button
+              onClick={() => setFinish(null)}
+              className="text-sm font-bold text-monad-300 hover:text-white"
+            >
               Back to map
             </button>
           </>
@@ -269,25 +303,44 @@ export default function PracticePage() {
 
       {/* Out of energy */}
       <Modal open={noEnergy} onClose={() => setNoEnergy(false)}>
-        <motion.div animate={{ rotate: [0, -10, 10, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}>
+        <motion.div
+          animate={{ rotate: [0, -10, 10, 0] }}
+          transition={{ repeat: Infinity, duration: 1.5 }}
+        >
           <Zap className="h-14 w-14 fill-yellow-300 text-yellow-300" />
         </motion.div>
         <h2 className="metal-text text-2xl font-black sm:text-3xl">Out of energy</h2>
         <p className="text-monad-100/80">
-          Energy refills 1 every {st.regenMinutes} min (up to {st.maxEnergy}). Or keep going now: {st.energyPerPack} ⚡ for{" "}
-          {st.packPrice} MON.
+          Energy refills 1 every {st.regenMinutes} min (up to {st.maxEnergy}). Or keep going now:{" "}
+          {st.energyPerPack} ⚡ for {st.packPrice} MON.
         </p>
         <NextEnergy at={st.nextEnergyAt} />
-        <button onClick={buyEnergy} disabled={busy === "buy" || !st.canBuy} className="btn-monad w-full">
-          {busy === "buy" ? <Loader2 className="h-5 w-5 animate-spin" /> : <Zap className="h-5 w-5" />} Buy{" "}
-          {st.energyPerPack} ⚡ · {st.packPrice} MON
+        <button
+          onClick={buyEnergy}
+          disabled={busy === "buy" || !st.canBuy}
+          className="btn-monad w-full"
+        >
+          {busy === "buy" ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Zap className="h-5 w-5" />
+          )}{" "}
+          Buy {st.energyPerPack} ⚡ · {st.packPrice} MON
         </button>
       </Modal>
     </div>
   );
 }
 
-function EnergyBar({ st, onBuy, buying }: { st: PracticeState; onBuy: () => void; buying: boolean }) {
+function EnergyBar({
+  st,
+  onBuy,
+  buying,
+}: {
+  st: PracticeState;
+  onBuy: () => void;
+  buying: boolean;
+}) {
   const bonus = Math.max(0, st.energy - st.maxEnergy);
   const bonusSlots = st.maxBankedEnergy - st.maxEnergy;
   return (
@@ -296,11 +349,18 @@ function EnergyBar({ st, onBuy, buying }: { st: PracticeState; onBuy: () => void
         <div className="min-w-0">
           <div className="flex flex-wrap gap-0.5 sm:gap-1">
             {Array.from({ length: st.maxEnergy }, (_, i) => (
-              <motion.span key={i} initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ ...spring, delay: i * 0.03 }}>
+              <motion.span
+                key={i}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ ...spring, delay: i * 0.03 }}
+              >
                 <Zap
                   className={cn(
                     "h-4 w-4 sm:h-5 sm:w-5",
-                    i < Math.min(st.energy, st.maxEnergy) ? "fill-yellow-300 text-yellow-300" : "text-monad-700"
+                    i < Math.min(st.energy, st.maxEnergy)
+                      ? "fill-yellow-300 text-yellow-300"
+                      : "text-monad-700"
                   )}
                 />
               </motion.span>
@@ -338,7 +398,9 @@ function EnergyBar({ st, onBuy, buying }: { st: PracticeState; onBuy: () => void
         </span>
       </div>
       {!st.canBuy && (
-        <p className="text-[11px] font-bold text-monad-300">Energy cap reached ({st.maxBankedEnergy}). Use some first.</p>
+        <p className="text-[11px] font-bold text-monad-300">
+          Energy cap reached ({st.maxBankedEnergy}). Use some first.
+        </p>
       )}
     </div>
   );
@@ -384,7 +446,9 @@ function LevelMap({
   const scrolled = useRef(false);
 
   const scrollToCurrent = (smooth: boolean) =>
-    document.getElementById(`lvl-${current}`)?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "center" });
+    document
+      .getElementById(`lvl-${current}`)
+      ?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "center" });
 
   // Always land on the level you're at (instantly on first paint, smoothly when you level up).
   useLayoutEffect(() => {
@@ -406,10 +470,40 @@ function LevelMap({
   return (
     <div className="relative">
       <div className="metal-card relative overflow-hidden" style={{ height }}>
-        <svg className="absolute inset-0 h-full w-full" viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" aria-hidden>
-          <path d={visiblePath} fill="none" stroke="#2a1d6b" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" style={{ strokeWidth: 26 }} />
-          <path d={visiblePath} fill="none" stroke="#836EF9" strokeOpacity="0.45" strokeDasharray="2 14" vectorEffect="non-scaling-stroke" style={{ strokeWidth: 6 }} />
-          <path d={fogPath} fill="none" stroke="#2a1d6b" strokeOpacity="0.55" vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" style={{ strokeWidth: 26 }} />
+        <svg
+          className="absolute inset-0 h-full w-full"
+          viewBox={`0 0 100 ${height}`}
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <path
+            d={visiblePath}
+            fill="none"
+            stroke="#2a1d6b"
+            vectorEffect="non-scaling-stroke"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ strokeWidth: 26 }}
+          />
+          <path
+            d={visiblePath}
+            fill="none"
+            stroke="#836EF9"
+            strokeOpacity="0.45"
+            strokeDasharray="2 14"
+            vectorEffect="non-scaling-stroke"
+            style={{ strokeWidth: 6 }}
+          />
+          <path
+            d={fogPath}
+            fill="none"
+            stroke="#2a1d6b"
+            strokeOpacity="0.55"
+            vectorEffect="non-scaling-stroke"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ strokeWidth: 26 }}
+          />
         </svg>
 
         {/* Fog of war above the next level */}
@@ -418,15 +512,22 @@ function LevelMap({
             className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-center justify-end pb-6"
             style={{
               height: fogBottom,
-              background: "linear-gradient(to top, rgba(16,9,42,0) 0%, rgba(16,9,42,0.85) 35%, #10092a 70%)",
+              background:
+                "linear-gradient(to top, rgba(16,9,42,0) 0%, rgba(16,9,42,0.85) 35%, #10092a 70%)",
             }}
           >
-            <motion.div animate={{ x: [-8, 8, -8] }} transition={{ repeat: Infinity, duration: 6 }} className="flex items-center gap-2 text-monad-400">
+            <motion.div
+              animate={{ x: [-8, 8, -8] }}
+              transition={{ repeat: Infinity, duration: 6 }}
+              className="flex items-center gap-2 text-monad-400"
+            >
               <Cloud className="h-8 w-8" />
               <Cloud className="h-6 w-6 opacity-70" />
             </motion.div>
             <p className="mt-2 text-xs font-extrabold uppercase tracking-widest text-monad-400">
-              {st.totalLevels - st.level - 1 > 0 ? `${st.totalLevels - st.level - 1} more levels ahead` : "Final level ahead"}
+              {st.totalLevels - st.level - 1 > 0
+                ? `${st.totalLevels - st.level - 1} more levels ahead`
+                : "Final level ahead"}
             </p>
           </div>
         )}
@@ -446,7 +547,11 @@ function LevelMap({
                 style={{ left: `${xFor(l)}%`, top: yFor(l) }}
               >
                 {isCurrent && (
-                  <motion.div className="absolute -top-[4.5rem] left-1/2 -translate-x-1/2" animate={{ y: [0, -6, 0] }} transition={{ repeat: Infinity, duration: 1.6 }}>
+                  <motion.div
+                    className="absolute -top-[4.5rem] left-1/2 -translate-x-1/2"
+                    animate={{ y: [0, -6, 0] }}
+                    transition={{ repeat: Infinity, duration: 1.6 }}
+                  >
                     <Mascot size={58} float={false} mood="happy" />
                   </motion.div>
                 )}
@@ -462,17 +567,33 @@ function LevelMap({
                   className={cn(
                     "relative flex items-center justify-center rounded-full font-black",
                     cp ? "h-[4.5rem] w-[4.5rem] text-xl" : "h-14 w-14 text-lg sm:h-16 sm:w-16",
-                    done && "bg-gradient-to-b from-monad-300 to-monad text-white shadow-[0_6px_0_0_#3b2a8f]",
-                    isCurrent && "bg-gradient-to-b from-[#6ee00a] to-duo text-white shadow-[0_6px_0_0_#46a302] ring-4 ring-duo/40"
+                    done &&
+                      "bg-gradient-to-b from-monad-300 to-monad text-white shadow-[0_6px_0_0_#3b2a8f]",
+                    isCurrent &&
+                      "bg-gradient-to-b from-[#6ee00a] to-duo text-white shadow-[0_6px_0_0_#46a302] ring-4 ring-duo/40"
                   )}
                 >
-                  {isCurrent && <span className="absolute inset-0 animate-ping rounded-full bg-duo/30" />}
-                  {busy === `level-${l}` ? <Loader2 className="h-6 w-6 animate-spin" /> : cp ? "🏁" : l}
+                  {isCurrent && (
+                    <span className="absolute inset-0 animate-ping rounded-full bg-duo/30" />
+                  )}
+                  {busy === `level-${l}` ? (
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                  ) : cp ? (
+                    "🏁"
+                  ) : (
+                    l
+                  )}
                 </motion.button>
                 {done && (
                   <div className="absolute -bottom-5 left-1/2 flex -translate-x-1/2 gap-0.5">
                     {[1, 2, 3].map((i) => (
-                      <Star key={i} className={cn("h-3.5 w-3.5", i <= stars ? "fill-yellow-300 text-yellow-300" : "text-monad-700")} />
+                      <Star
+                        key={i}
+                        className={cn(
+                          "h-3.5 w-3.5",
+                          i <= stars ? "fill-yellow-300 text-yellow-300" : "text-monad-700"
+                        )}
+                      />
                     ))}
                   </div>
                 )}
@@ -480,7 +601,9 @@ function LevelMap({
                   <motion.button
                     onClick={() => cp.reached && !cp.claimed && onChest(l)}
                     disabled={!cp.reached || cp.claimed || Boolean(busy)}
-                    animate={cp.reached && !cp.claimed ? { rotate: [0, -8, 8, 0], scale: [1, 1.1, 1] } : {}}
+                    animate={
+                      cp.reached && !cp.claimed ? { rotate: [0, -8, 8, 0], scale: [1, 1.1, 1] } : {}
+                    }
                     transition={{ repeat: Infinity, duration: 1.4, repeatDelay: 0.6 }}
                     className={cn(
                       "absolute top-1/2 flex -translate-y-1/2 items-center gap-1 whitespace-nowrap rounded-2xl px-2.5 py-1.5 text-[11px] font-black sm:px-3 sm:py-2 sm:text-xs",

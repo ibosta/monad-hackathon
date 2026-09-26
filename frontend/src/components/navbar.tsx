@@ -83,7 +83,12 @@ export function Navbar() {
               >
                 <Zap className="h-4 w-4 fill-yellow-300" />
                 <AnimatePresence mode="popLayout">
-                  <motion.span key={practice.energy} initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 12, opacity: 0 }}>
+                  <motion.span
+                    key={practice.energy}
+                    initial={{ y: -12, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 12, opacity: 0 }}
+                  >
                     {practice.energy}
                   </motion.span>
                 </AnimatePresence>

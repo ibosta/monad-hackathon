@@ -105,26 +105,26 @@ export function Confetti({ fire, count = 70 }: { fire: unknown; count?: number }
   if (!fire) return null;
   return (
     <BodyPortal>
-    <div
-      className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center overflow-hidden"
-      aria-hidden
-    >
-      {pieces.map((p) => (
-        <motion.span
-          key={p.id}
-          className={cn("absolute", p.round ? "rounded-full" : "rounded-sm")}
-          style={{ width: p.size, height: p.size * (p.round ? 1 : 0.5), background: p.color }}
-          initial={{ x: 0, y: 0, opacity: 1, rotate: 0 }}
-          animate={{ x: p.x, y: [0, p.y, p.y + 900], opacity: [1, 1, 0], rotate: p.rotate }}
-          transition={{
-            duration: 2.2,
-            delay: p.delay,
-            ease: [0.2, 0.7, 0.4, 1],
-            times: [0, 0.35, 1],
-          }}
-        />
-      ))}
-    </div>
+      <div
+        className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center overflow-hidden"
+        aria-hidden
+      >
+        {pieces.map((p) => (
+          <motion.span
+            key={p.id}
+            className={cn("absolute", p.round ? "rounded-full" : "rounded-sm")}
+            style={{ width: p.size, height: p.size * (p.round ? 1 : 0.5), background: p.color }}
+            initial={{ x: 0, y: 0, opacity: 1, rotate: 0 }}
+            animate={{ x: p.x, y: [0, p.y, p.y + 900], opacity: [1, 1, 0], rotate: p.rotate }}
+            transition={{
+              duration: 2.2,
+              delay: p.delay,
+              ease: [0.2, 0.7, 0.4, 1],
+              times: [0, 0.35, 1],
+            }}
+          />
+        ))}
+      </div>
     </BodyPortal>
   );
 }
