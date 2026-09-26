@@ -62,6 +62,30 @@ Body: `{ "walletAddress": "0x…" }`. This re-issues the completion signature, f
 
 ---
 
+## Endpoint Smoke Test Tool
+
+A lightweight CLI smoke test is included for live backend endpoint checks. It is preferred over a Postman collection for this repo because it is versioned, automatable in CI, and uses the same Node.js toolchain as the backend.
+
+```bash
+# Terminal 1
+cd backend
+npm run dev
+
+# Terminal 2
+cd backend
+npm run test:api
+```
+
+Useful overrides:
+
+```bash
+API_BASE_URL=http://localhost:5001 npm run test:api
+TEST_WALLET=0x1111111111111111111111111111111111111111 npm run test:api
+node scripts/api-smoke-test.js --base-url http://localhost:5001 --wallet 0x1111111111111111111111111111111111111111
+```
+
+The tool validates health/config, lessons/progress, level test, practice, achievements, leaderboard, invalid-input handling, and graceful responses for chain-dependent claim/signature endpoints.
+
 ## Contract calls (frontend → wallet, via wagmi/viem)
 
 | Step | Call | Value |

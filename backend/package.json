@@ -7,9 +7,10 @@
     "start": "prisma db push --skip-generate && node src/index.js",
     "dev": "prisma db push && node --watch src/index.js",
     "test": "node --test --test-concurrency=1 test/*.test.js",
-    "lint": "eslint \"src/**/*.js\" \"test/**/*.js\"",
-    "format": "prettier --write \"src/**/*.js\" \"*.json\"",
-    "format:check": "prettier --check \"src/**/*.js\" \"*.json\""
+    "test:api": "node scripts/api-smoke-test.js",
+    "lint": "eslint \"src/**/*.js\" \"test/**/*.js\" \"scripts/**/*.js\"",
+    "format": "prettier --write \"src/**/*.js\" \"test/**/*.js\" \"scripts/**/*.js\" \"*.json\"",
+    "format:check": "prettier --check \"src/**/*.js\" \"test/**/*.js\" \"scripts/**/*.js\" \"*.json\""
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

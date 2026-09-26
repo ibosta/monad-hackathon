@@ -7,6 +7,7 @@ import { useAccount } from "wagmi";
 import { Lock, Star, Zap, Loader2, X, Gift, Check, Cloud, LocateFixed } from "lucide-react";
 import { Mascot } from "@/components/mascot";
 import { Modal } from "@/components/modal";
+import { LoadError } from "@/components/load-error";
 import { Confetti, spring } from "@/components/motion";
 import { ActionBar, QuestionCard } from "@/components/question-card";
 import { WalletButton } from "@/components/wallet-button";
@@ -44,8 +45,9 @@ export default function PracticePage() {
   const { address, isConnected } = useAccount();
   const qc = useQueryClient();
   const send = useChainTx();
-  const { data: st, refetch } = usePractice(address);
+  const { data: st, refetch, isError } = usePractice(address);
   const [play, setPlay] = useState<Play | null>(null);
+  const [confirmQuit, setConfirmQuit] = useState(false);
   const [finish, setFinish] = useState<Finish | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [noEnergy, setNoEnergy] = useState(false);
@@ -61,6 +63,7 @@ export default function PracticePage() {
       </section>
     );
   }
+  if (isError && !st) return <LoadError what="your practice map" onRetry={() => refetch()} />;
   if (!st) {
     return (
       <div className="flex justify-center py-20">
@@ -169,7 +172,7 @@ export default function PracticePage() {
       <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col">
         <div className="mb-8 flex items-center gap-4">
           <button
-            onClick={() => setPlay(null)}
+            onClick={() => setConfirmQuit(true)}
             aria-label="Quit"
             className="text-monad-300 hover:text-white"
           >
@@ -216,6 +219,27 @@ export default function PracticePage() {
             </button>
           )}
         </ActionBar>
+
+        <Modal open={confirmQuit} onClose={() => setConfirmQuit(false)}>
+          <Mascot size={96} mood="sad" />
+          <h2 className="metal-text text-2xl font-black">Leave level {play.level}?</h2>
+          <p className="text-monad-100/85">
+            The <b className="text-yellow-300">1 ⚡</b> you spent to start this level won&apos;t come back, and your answers
+            so far will be lost.
+          </p>
+          <button onClick={() => setConfirmQuit(false)} className="btn-green w-full">
+            Keep playing
+          </button>
+          <button
+            onClick={() => {
+              setConfirmQuit(false);
+              setPlay(null);
+            }}
+            className="btn-berry w-full"
+          >
+            Leave and lose 1 ⚡
+          </button>
+        </Modal>
       </div>
     );
   }
@@ -543,16 +567,28 @@ function LevelMap({
               <div
                 key={l}
                 id={`lvl-${l}`}
-                className="absolute -translate-x-1/2 -translate-y-1/2 scroll-my-40"
+                className={cn(
+                  "absolute -translate-x-1/2 -translate-y-1/2 scroll-my-40",
+                  isCurrent ? "z-30" : "z-[5]"
+                )}
                 style={{ left: `${xFor(l)}%`, top: yFor(l) }}
               >
                 {isCurrent && (
+                  // Mona stands next to the current level, on the side facing the map centre,
+                  // above the fog layer so she's never hidden.
                   <motion.div
-                    className="absolute -top-[4.5rem] left-1/2 -translate-x-1/2"
+                    className={cn(
+                      "pointer-events-none absolute",
+                      cp ? "-top-16" : "top-1/2 -translate-y-1/2",
+                      xFor(l) > 50 ? "right-[4.25rem]" : "left-[4.25rem]"
+                    )}
                     animate={{ y: [0, -6, 0] }}
                     transition={{ repeat: Infinity, duration: 1.6 }}
                   >
-                    <Mascot size={58} float={false} mood="happy" />
+                    <Mascot size={56} float={false} mood="happy" />
+                    <span className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white px-2 py-0.5 text-[10px] font-black text-monad-900 shadow">
+                      Let&apos;s go!
+                    </span>
                   </motion.div>
                 )}
                 <motion.button
@@ -626,7 +662,7 @@ function LevelMap({
         {/* Upcoming locked level hint (visible, but no number) */}
         {roadEnd > lastVisible && (
           <div
-            className="absolute z-20 -translate-x-1/2 -translate-y-1/2"
+            className="absolute z-20 -translate-x-1/2 -translate-y-1/2 opacity-90"
             style={{ left: `${xFor(lastVisible + 1)}%`, top: yFor(lastVisible + 1) }}
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-monad-900/90 text-monad-500 shadow-[0_5px_0_0_#150c38]">
