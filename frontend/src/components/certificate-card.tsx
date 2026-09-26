@@ -1,13 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useWalletClient } from "wagmi";
 import { toast } from "sonner";
-import { ExternalLink, Link2, Wallet } from "lucide-react";
+import { ExternalLink, Link2 } from "lucide-react";
 import { spring } from "@/components/motion";
 import type { CertificateInfo } from "@/lib/api";
 import { MONAD_EXPLORER } from "@/lib/wagmi";
-import { walletErrorMessage } from "@/lib/wallet-errors";
+import { AddToWalletButton } from "@/components/add-to-wallet";
 
 export const explorerNftUrl = (c: { contract: string; tokenId: number }) =>
   `${MONAD_EXPLORER}/nft/${c.contract}/${c.tokenId}`;
@@ -28,28 +27,6 @@ export function CertificateCard({
   index?: number;
   actions?: boolean;
 }) {
-  const { data: wallet } = useWalletClient();
-
-  const addToWallet = async () => {
-    if (!wallet) return toast.error("Connect your wallet first");
-    try {
-      const ok = await wallet.request({
-        method: "wallet_watchAsset",
-        params: {
-          type: "ERC721",
-          options: { address: cert.contract, tokenId: String(cert.tokenId) },
-        },
-      } as never);
-      if (ok) toast.success("Certificate added to your wallet 🎉");
-    } catch (e) {
-      toast.error("Couldn't add to wallet", {
-        description:
-          walletErrorMessage(e) ??
-          "Your wallet may not support NFT import. Import manually: NFTs → Import NFT.",
-      });
-    }
-  };
-
   const copyLink = async () => {
     await navigator.clipboard.writeText(verifyUrl(cert.tokenId));
     toast.success("Verification link copied", {
@@ -85,11 +62,7 @@ export function CertificateCard({
       </div>
       {actions && (
         <div className="grid grid-cols-3 gap-2">
-          <IconBtn
-            onClick={addToWallet}
-            icon={<Wallet className="h-4 w-4" />}
-            label="Add to wallet"
-          />
+          <AddToWalletButton contract={cert.contract} tokenId={cert.tokenId} />
           <IconBtn onClick={copyLink} icon={<Link2 className="h-4 w-4" />} label="Verify link" />
           <a
             href={explorerNftUrl(cert)}

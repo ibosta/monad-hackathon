@@ -28,10 +28,17 @@ export default function ProfilePage() {
     queryFn: () => api.user(address!),
     enabled: Boolean(address),
   });
-  const { data: certs, isLoading } = useQuery({
+  const {
+    data: certs,
+    isLoading,
+    isError: certsError,
+    refetch: refetchCerts,
+  } = useQuery({
     queryKey: ["certificates", address, user?.certificateId],
     queryFn: () => api.certificates(address!),
     enabled: Boolean(address),
+    retry: 3,
+    retryDelay: (n) => 1500 * (n + 1), // the Monad RPC is rate limited; back off
   });
   const { data: duels } = useQuery({
     queryKey: ["duel-stats", address],
@@ -133,7 +140,16 @@ export default function ProfilePage() {
             Verify any certificate →
           </Link>
         </div>
-        {isLoading ? (
+        {certsError && !certs ? (
+          <div className="metal-card flex flex-col items-center gap-3 p-6 text-center">
+            <p className="font-bold text-monad-100">
+              Couldn&apos;t load certificates right now (Monad RPC is busy).
+            </p>
+            <button onClick={() => refetchCerts()} className="btn-monad">
+              Retry
+            </button>
+          </div>
+        ) : isLoading ? (
           <div className="grid gap-4 sm:grid-cols-2">
             {[0, 1].map((i) => (
               <div key={i} className="metal-card aspect-[3/2] animate-pulse" />
