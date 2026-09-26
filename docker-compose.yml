@@ -28,12 +28,16 @@ services:
       - ./backend/src/contract:/backend/src/contract
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      # NEXT_PUBLIC_* are inlined at build time -> must be build args
+      args:
+        NEXT_PUBLIC_BACKEND_URL: ${PUBLIC_BACKEND_URL:-http://localhost:5001}
+        NEXT_PUBLIC_MONINGO_CONTRACT_ADDRESS: ${MONINGO_ADDRESS:-}
+        NEXT_PUBLIC_MONAD_RPC_URL: ${MONAD_RPC_URL:-https://testnet-rpc.monad.xyz}
     profiles: ["frontend"]
     ports:
       - "3000:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-5001}
     depends_on:
       - backend
     restart: unless-stopped
