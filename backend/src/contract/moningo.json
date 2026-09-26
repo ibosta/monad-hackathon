@@ -1,7 +1,7 @@
 {
-  "address": "",
+  "address": "0xbC4AD81c173A021487483A6b7e27F7BcccFcb750",
   "chainId": 10143,
-  "deployedAt": null,
+  "deployedAt": "2026-09-26T10:24:19.820Z",
   "abi": [
     {
       "inputs": [
@@ -16,7 +16,7 @@
     },
     {
       "inputs": [],
-      "name": "AlreadyCertified",
+      "name": "BadLevel",
       "type": "error"
     },
     {
@@ -161,7 +161,7 @@
     },
     {
       "inputs": [],
-      "name": "NotEligible",
+      "name": "NoPaidExam",
       "type": "error"
     },
     {
@@ -220,6 +220,11 @@
     {
       "inputs": [],
       "name": "TransferFailed",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "WrongFee",
       "type": "error"
     },
     {
@@ -294,12 +299,31 @@
         },
         {
           "indexed": false,
-          "internalType": "uint256",
-          "name": "streak",
-          "type": "uint256"
+          "internalType": "uint8",
+          "name": "level",
+          "type": "uint8"
         }
       ],
       "name": "CertificateMinted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "timestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "LevelTestStarted",
       "type": "event"
     },
     {
@@ -437,7 +461,7 @@
     },
     {
       "inputs": [],
-      "name": "CERT_THRESHOLD",
+      "name": "DAILY_STAKE",
       "outputs": [
         {
           "internalType": "uint256",
@@ -450,12 +474,25 @@
     },
     {
       "inputs": [],
-      "name": "DAILY_STAKE",
+      "name": "EXAM_FEE",
       "outputs": [
         {
           "internalType": "uint256",
           "name": "",
           "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "MAX_LEVEL",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
         }
       ],
       "stateMutability": "view",
@@ -531,7 +568,18 @@
       "type": "function"
     },
     {
-      "inputs": [],
+      "inputs": [
+        {
+          "internalType": "uint8",
+          "name": "level",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bytes",
+          "name": "signature",
+          "type": "bytes"
+        }
+      ],
       "name": "claimCertificate",
       "outputs": [
         {
@@ -554,6 +602,49 @@
       "name": "completeEnglishTask",
       "outputs": [],
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        },
+        {
+          "internalType": "uint8",
+          "name": "level",
+          "type": "uint8"
+        }
+      ],
+      "name": "examDigest",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "examPaidAt",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {
@@ -604,6 +695,16 @@
           "internalType": "uint256",
           "name": "certificateId",
           "type": "uint256"
+        },
+        {
+          "internalType": "uint8",
+          "name": "level",
+          "type": "uint8"
+        },
+        {
+          "internalType": "bool",
+          "name": "examPaid",
+          "type": "bool"
         }
       ],
       "stateMutability": "view",
@@ -628,6 +729,44 @@
           "internalType": "bool",
           "name": "",
           "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint8",
+          "name": "level",
+          "type": "uint8"
+        }
+      ],
+      "name": "levelName",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "pure",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "name": "levelOf",
+      "outputs": [
+        {
+          "internalType": "uint8",
+          "name": "",
+          "type": "uint8"
         }
       ],
       "stateMutability": "view",
@@ -791,6 +930,13 @@
       "name": "setVerifier",
       "outputs": [],
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "startLevelTest",
+      "outputs": [],
+      "stateMutability": "payable",
       "type": "function"
     },
     {

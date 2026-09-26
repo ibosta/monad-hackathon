@@ -21,7 +21,7 @@ import { StatCard } from "@/components/stat-card";
 import { useMoningoUser, useRewardPool, useStartStreak } from "@/hooks/use-moningo";
 import { fetchLessons, fetchUser, type Lesson, type UserResponse } from "@/lib/api";
 import { DAILY_STAKE_MON, REWARD_MON, CERT_THRESHOLD, getContractAddress } from "@/lib/contract";
-import { formatMon } from "@/lib/utils";
+import { formatMon, getErrorMessage } from "@/lib/utils";
 
 const lessonTypeMeta: Record<string, { label: string; emoji: string }> = {
   vocabulary: { label: "Vocabulary", emoji: "📚" },
@@ -222,7 +222,7 @@ export default function DashboardPage() {
                 {startStreak.isError && (
                   <p className="flex items-center gap-2 text-sm text-destructive">
                     <AlertCircle className="h-4 w-4" />
-                    {startStreak.error?.shortMessage || startStreak.error?.message || "Transaction failed"}
+                    {getErrorMessage(startStreak.error)}
                   </p>
                 )}
                 {startStreak.isConfirmed && (

@@ -9,21 +9,25 @@ import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 /// @title Moningo - stake MON, learn English daily, earn MON and an NFT certificate.
-/// @notice Flow: startStreak (stake 0.1 MON) -> finish lessons -> completeEnglishTask
-///         (stake back + reward) -> after CERT_THRESHOLD tasks, claimCertificate (NFT).
+/// @notice Daily: startStreak (stake 0.1 MON) -> lessons -> completeEnglishTask (stake back + reward).
+///         Certificate: startLevelTest (pay EXAM_FEE, goes to reward pool) -> backend-graded exam
+///         -> claimCertificate(level, sig) mints a soulbound on-chain SVG NFT with the CEFR level.
 contract Moningo is ERC721, Ownable {
     using Strings for uint256;
 
     uint256 public constant DAILY_STAKE = 0.1 ether;
     uint256 public constant REWARD = 0.01 ether;
-    uint256 public constant CERT_THRESHOLD = 3;
+    uint256 public constant EXAM_FEE = 0.05 ether;
+    uint8 public constant MAX_LEVEL = 5; // 1=A1 .. 5=C1
 
     /// @notice Backend key that attests a user actually finished the day's lessons.
     address public verifier;
 
     mapping(address => uint256) public streakTimestamps; // 0 = no active stake
     mapping(address => uint256) public userStreaks;
-    mapping(address => uint256) public certificateOf; // tokenId, 0 = none
+    mapping(address => uint256) public certificateOf; // latest tokenId, 0 = none
+    mapping(address => uint256) public examPaidAt; // 0 = no paid attempt pending
+    mapping(address => uint8) public levelOf; // highest certified level
 
     /// @notice MON currently held on behalf of users' active stakes (not rewardable).
     uint256 public totalLocked;
@@ -33,7 +37,8 @@ contract Moningo is ERC721, Ownable {
     event TaskCompleted(address indexed user, uint256 newStreak);
     event RewardPaid(address indexed user, uint256 amount);
     event StreakLost(address indexed user, uint256 forfeited);
-    event CertificateMinted(address indexed user, uint256 indexed tokenId, uint256 streak);
+    event LevelTestStarted(address indexed user, uint256 timestamp);
+    event CertificateMinted(address indexed user, uint256 indexed tokenId, uint8 level);
     event VerifierUpdated(address verifier);
 
     error WrongStake();
@@ -41,8 +46,9 @@ contract Moningo is ERC721, Ownable {
     error NoActiveStreak();
     error StreakExpired();
     error BadSignature();
-    error NotEligible();
-    error AlreadyCertified();
+    error WrongFee();
+    error NoPaidExam();
+    error BadLevel();
     error Soulbound();
     error TransferFailed();
 
@@ -96,14 +102,29 @@ contract Moningo is ERC721, Ownable {
         if (rewarded) emit RewardPaid(msg.sender, REWARD);
     }
 
-    function claimCertificate() external returns (uint256 tokenId) {
-        if (userStreaks[msg.sender] < CERT_THRESHOLD) revert NotEligible();
-        if (certificateOf[msg.sender] != 0) revert AlreadyCertified();
+    /// @notice Pay the exam fee to unlock one certification attempt. Fee funds daily rewards.
+    function startLevelTest() external payable {
+        if (msg.value != EXAM_FEE) revert WrongFee();
+        examPaidAt[msg.sender] = block.timestamp;
+        emit LevelTestStarted(msg.sender, block.timestamp);
+    }
+
+    /// @param level CEFR level 1..5 (A1..C1) graded by the backend.
+    /// @param signature Verifier signature over examDigest(msg.sender, level).
+    function claimCertificate(uint8 level, bytes calldata signature) external returns (uint256 tokenId) {
+        if (examPaidAt[msg.sender] == 0) revert NoPaidExam();
+        if (level == 0 || level > MAX_LEVEL) revert BadLevel();
+        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(examDigest(msg.sender, level));
+        if (ECDSA.recover(digest, signature) != verifier) revert BadSignature();
+
+        examPaidAt[msg.sender] = 0;
+        if (level > levelOf[msg.sender]) levelOf[msg.sender] = level;
         tokenId = nextTokenId++;
         certificateOf[msg.sender] = tokenId;
+        _certLevel[tokenId] = level;
         _certStreak[tokenId] = userStreaks[msg.sender];
         _safeMint(msg.sender, tokenId);
-        emit CertificateMinted(msg.sender, tokenId, userStreaks[msg.sender]);
+        emit CertificateMinted(msg.sender, tokenId, level);
     }
 
     // ---------------------------------------------------------------- views
@@ -111,6 +132,11 @@ contract Moningo is ERC721, Ownable {
     /// @notice Message the backend signs (EIP-191 personal_sign over these 32 bytes).
     function taskDigest(address user) public view returns (bytes32) {
         return keccak256(abi.encodePacked(address(this), block.chainid, user, streakTimestamps[user]));
+    }
+
+    /// @notice Message the backend signs for a graded level test. examPaidAt acts as nonce.
+    function examDigest(address user, uint8 level) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(address(this), block.chainid, "EXAM", user, level, examPaidAt[user]));
     }
 
     /// @notice MON available for rewards (balance minus active stakes).
@@ -121,31 +147,44 @@ contract Moningo is ERC721, Ownable {
     function getUser(address user)
         external
         view
-        returns (uint256 streak, uint256 stakedAt, bool active, uint256 certificateId)
+        returns (uint256 streak, uint256 stakedAt, bool active, uint256 certificateId, uint8 level, bool examPaid)
     {
         stakedAt = streakTimestamps[user];
         active = stakedAt != 0 && block.timestamp <= stakedAt + 1 days;
-        return (userStreaks[user], stakedAt, active, certificateOf[user]);
+        return (userStreaks[user], stakedAt, active, certificateOf[user], levelOf[user], examPaidAt[user] != 0);
     }
 
     // ---------------------------------------------------------- certificate
 
     mapping(uint256 => uint256) private _certStreak;
+    mapping(uint256 => uint8) private _certLevel;
+
+    function levelName(uint8 level) public pure returns (string memory) {
+        if (level == 1) return "A1";
+        if (level == 2) return "A2";
+        if (level == 3) return "B1";
+        if (level == 4) return "B2";
+        return "C1";
+    }
 
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         address holder = _requireOwned(tokenId);
         string memory addr = Strings.toHexString(holder);
         string memory streak = _certStreak[tokenId].toString();
+        string memory lvl = levelName(_certLevel[tokenId]);
         string memory svg = string.concat(
             '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400">',
             '<rect width="600" height="400" rx="24" fill="#200052"/>',
             '<rect x="16" y="16" width="568" height="368" rx="16" fill="none" stroke="#836EF9" stroke-width="4"/>',
             '<text x="300" y="110" font-family="Arial" font-size="40" fill="#fff" text-anchor="middle" font-weight="bold">MONINGO</text>',
-            '<text x="300" y="160" font-family="Arial" font-size="22" fill="#A0055D" text-anchor="middle">English Certificate</text>',
-            '<text x="300" y="230" font-family="Arial" font-size="18" fill="#fff" text-anchor="middle">Completed ',
+            '<text x="300" y="150" font-family="Arial" font-size="22" fill="#DDD7FE" text-anchor="middle">English Certificate</text>',
+            '<circle cx="300" cy="215" r="42" fill="#836EF9"/>',
+            '<text x="300" y="228" font-family="Arial" font-size="34" fill="#fff" text-anchor="middle" font-weight="bold">',
+            lvl,
+            '</text><text x="300" y="290" font-family="Arial" font-size="16" fill="#fff" text-anchor="middle">CEFR level verified on Monad | ',
             streak,
-            ' daily lessons on Monad</text>',
-            '<text x="300" y="300" font-family="monospace" font-size="13" fill="#836EF9" text-anchor="middle">',
+            ' daily lessons</text>',
+            '<text x="300" y="340" font-family="monospace" font-size="13" fill="#836EF9" text-anchor="middle">',
             addr,
             '</text></svg>'
         );
@@ -153,7 +192,9 @@ contract Moningo is ERC721, Ownable {
             '{"name":"Moningo Certificate #',
             tokenId.toString(),
             '","description":"Proof of completing daily English lessons on Moningo (Monad).",',
-            '"attributes":[{"trait_type":"Lessons","value":',
+            '"attributes":[{"trait_type":"Level","value":"',
+            lvl,
+            '"},{"trait_type":"Daily lessons","value":',
             streak,
             '}],"image":"data:image/svg+xml;base64,',
             Base64.encode(bytes(svg)),

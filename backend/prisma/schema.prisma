@@ -16,6 +16,16 @@ model User {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
   progress         Progress[]
+  levelTests       LevelTest[]
+}
+
+model LevelTest {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  correct   Int
+  level     Int
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model Progress {

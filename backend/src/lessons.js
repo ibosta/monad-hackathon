@@ -9,6 +9,12 @@ const POOL = [
   { id: 7, type: "vocabulary", question: "What is the opposite of 'cheap'?", options: ["Expensive", "Easy", "Free"], answer: "Expensive" },
   { id: 8, type: "grammar", question: "I have lived here ___ 2020.", options: ["for", "since", "from"], answer: "since" },
   { id: 9, type: "translation", question: "Translate: 'Yarın görüşürüz.'", options: ["See you tomorrow.", "See you yesterday.", "Nice to meet you."], answer: "See you tomorrow." },
+  { id: 10, type: "idiom", question: "'Break a leg!' means…", options: ["Good luck!", "Be careful!", "Go away!"], answer: "Good luck!" },
+  { id: 11, type: "vocabulary", question: "Which word is a fruit?", options: ["Carrot", "Mango", "Onion"], answer: "Mango" },
+  { id: 12, type: "grammar", question: "They ___ playing football now.", options: ["is", "are", "am"], answer: "are" },
+  { id: 13, type: "translation", question: "Translate: 'Su içmek istiyorum.'", options: ["I want to drink water.", "I want to eat bread.", "I drank water."], answer: "I want to drink water." },
+  { id: 14, type: "idiom", question: "'Piece of cake' means…", options: ["Very easy", "Very sweet", "Very small"], answer: "Very easy" },
+  { id: 15, type: "grammar", question: "This is ___ book I told you about.", options: ["a", "an", "the"], answer: "the" },
 ];
 
 const LESSONS_PER_DAY = 3;

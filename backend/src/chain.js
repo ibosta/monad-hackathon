@@ -20,7 +20,7 @@ function ready() {
 
 async function getOnchainUser(address) {
   if (!ready()) return null;
-  const [streak, stakedAt, active, certificateId] = await client.readContract({
+  const [streak, stakedAt, active, certificateId, level, examPaid] = await client.readContract({
     address: CONTRACT_ADDRESS,
     abi,
     functionName: "getUser",
@@ -31,6 +31,8 @@ async function getOnchainUser(address) {
     stakedAt: Number(stakedAt),
     active,
     certificateId: Number(certificateId),
+    level: Number(level),
+    examPaid,
   };
 }
 
@@ -51,7 +53,19 @@ async function signCompletion(address) {
   return verifier.signMessage({ message: { raw: digest } });
 }
 
+/** Signs examDigest(user, level) so the user can call claimCertificate(level, signature). */
+async function signExam(address, level) {
+  const digest = await client.readContract({
+    address: CONTRACT_ADDRESS,
+    abi,
+    functionName: "examDigest",
+    args: [getAddress(address), level],
+  });
+  return verifier.signMessage({ message: { raw: digest } });
+}
+
 module.exports = {
+  signExam,
   abi,
   client,
   verifier,

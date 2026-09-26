@@ -83,20 +83,38 @@ describe("Moningo", () => {
     await expect(tx).not.to.emit(moningo, "RewardPaid");
   });
 
-  it("mints a soulbound certificate after 3 completions", async () => {
-    const { moningo, alice, bob, sign } = await loadFixture(deploy);
-    await expect(moningo.connect(alice).claimCertificate()).to.be.revertedWithCustomError(moningo, "NotEligible");
-    for (let i = 0; i < 3; i++) await completeDay(moningo, alice, sign);
-    await expect(moningo.connect(alice).claimCertificate()).to.emit(moningo, "CertificateMinted").withArgs(alice.address, 1, 3);
-    await expect(moningo.connect(alice).claimCertificate()).to.be.revertedWithCustomError(moningo, "AlreadyCertified");
-    expect(await moningo.ownerOf(1)).to.equal(alice.address);
+  const FEE = ethers.parseEther("0.05");
+  const signExam = async (moningo, signer, user, level) =>
+    signer.signMessage(ethers.getBytes(await moningo.examDigest(user.address, level)));
 
-    const uri = await moningo.tokenURI(1);
-    const meta = JSON.parse(Buffer.from(uri.split(",")[1], "base64").toString());
+  it("paid level test mints a soulbound CEFR certificate", async () => {
+    const { moningo, verifier, alice, bob } = await loadFixture(deploy);
+    await expect(moningo.connect(alice).claimCertificate(3, "0x")).to.be.revertedWithCustomError(moningo, "NoPaidExam");
+    await expect(moningo.connect(alice).startLevelTest({ value: 1n })).to.be.revertedWithCustomError(moningo, "WrongFee");
+    const poolBefore = await moningo.rewardPool();
+    await expect(moningo.connect(alice).startLevelTest({ value: FEE })).to.emit(moningo, "LevelTestStarted");
+    expect(await moningo.rewardPool()).to.equal(poolBefore + FEE);
+
+    await expect(moningo.connect(alice).claimCertificate(4, await signExam(moningo, verifier, alice, 3)))
+      .to.be.revertedWithCustomError(moningo, "BadSignature");
+    const sig = await signExam(moningo, verifier, alice, 3);
+    await expect(moningo.connect(alice).claimCertificate(3, sig)).to.emit(moningo, "CertificateMinted").withArgs(alice.address, 1, 3);
+    await expect(moningo.connect(alice).claimCertificate(3, sig)).to.be.revertedWithCustomError(moningo, "NoPaidExam");
+    expect(await moningo.ownerOf(1)).to.equal(alice.address);
+    expect(await moningo.levelOf(alice.address)).to.equal(3);
+
+    const meta = JSON.parse(Buffer.from((await moningo.tokenURI(1)).split(",")[1], "base64").toString());
     expect(meta.name).to.equal("Moningo Certificate #1");
+    expect(meta.attributes[0].value).to.equal("B1");
     expect(meta.image).to.match(/^data:image\/svg\+xml;base64,/);
 
     await expect(moningo.connect(alice).transferFrom(alice.address, bob.address, 1)).to.be.revertedWithCustomError(moningo, "Soulbound");
+  });
+
+  it("rejects out-of-range levels", async () => {
+    const { moningo, verifier, alice } = await loadFixture(deploy);
+    await moningo.connect(alice).startLevelTest({ value: FEE });
+    await expect(moningo.connect(alice).claimCertificate(6, await signExam(moningo, verifier, alice, 6))).to.be.revertedWithCustomError(moningo, "BadLevel");
   });
 
   it("owner can only withdraw surplus, never user stakes", async () => {

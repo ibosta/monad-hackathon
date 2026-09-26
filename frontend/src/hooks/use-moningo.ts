@@ -53,7 +53,7 @@ export function useStartStreak() {
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({ hash: txHash });
+    useWaitForTransactionReceipt({ hash: txHash ?? undefined });
 
   const startStreak = useCallback(async () => {
     const contract = getContractAddress();
@@ -89,7 +89,7 @@ export function useCompleteTask() {
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({ hash: txHash });
+    useWaitForTransactionReceipt({ hash: txHash ?? undefined });
 
   const completeTask = useCallback(
     async (signature: `0x${string}`) => {
@@ -127,7 +127,7 @@ export function useClaimCertificate() {
   const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
 
   const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({ hash: txHash });
+    useWaitForTransactionReceipt({ hash: txHash ?? undefined });
 
   const claimCertificate = useCallback(async () => {
     const contract = getContractAddress();

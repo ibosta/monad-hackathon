@@ -5,6 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Safely extract a human-readable message from a viem/wagmi error.
+ * Viem BaseError has `shortMessage`; fallback to `message`, then to a default.
+ */
+export function getErrorMessage(err: unknown, fallback = "Transaction failed"): string {
+  if (!err) return fallback;
+  if (err instanceof Error) {
+    const anyErr = err as Error & { shortMessage?: string };
+    return anyErr.shortMessage || err.message || fallback;
+  }
+  if (typeof err === "string") return err || fallback;
+  return fallback;
+}
+
 /** Shorten an Ethereum address: 0x1234…abcd */
 export function shortAddress(address?: string | null): string {
   if (!address) return "";

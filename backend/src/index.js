@@ -4,6 +4,7 @@ const { PrismaClient } = require("@prisma/client");
 const { isAddress, getAddress, formatEther } = require("viem");
 const chain = require("./chain");
 const { lessonsForDay, today, LESSONS_PER_DAY } = require("./lessons");
+const levelTest = require("./level-test");
 
 const prisma = new PrismaClient();
 const app = express();
@@ -30,7 +31,7 @@ app.get("/api/config", wrap(async (_req, res) => {
     contractAddress: chain.CONTRACT_ADDRESS,
     dailyStake: "0.1",
     reward: "0.01",
-    certThreshold: 3,
+    examFee: "0.05",
     rewardPool: pool ? formatEther(BigInt(pool)) : null,
     lessonsPerDay: LESSONS_PER_DAY,
     abi: chain.abi,
@@ -115,6 +116,33 @@ async function issueSignature(address) {
   if (!onchain.active) return { signature: null, claimError: "No active stake: call startStreak() with 0.1 MON first" };
   return { signature: await chain.signCompletion(address), claimError: null };
 }
+
+app.get("/api/level-test", (_req, res) => {
+  res.json({ fee: "0.05", questions: levelTest.publicQuestions() });
+});
+
+/** Body: { walletAddress, answers: { [questionId]: "chosen option" } } */
+app.post("/api/level-test/submit", wrap(async (req, res) => {
+  const { walletAddress, answers } = req.body || {};
+  if (!isAddress(walletAddress || "")) return res.status(400).json({ success: false, message: "Invalid walletAddress" });
+  if (!answers || typeof answers !== "object") return res.status(400).json({ success: false, message: "answers object required" });
+  const address = getAddress(walletAddress);
+  const result = levelTest.grade(answers);
+
+  const user = await prisma.user.upsert({ where: { walletAddress: address }, update: {}, create: { walletAddress: address } });
+  await prisma.levelTest.create({ data: { userId: user.id, correct: result.correct, level: result.level } });
+  console.log(`[level-test] ${address} ${result.correct}/${result.total} -> ${result.levelName}`);
+
+  let signature = null;
+  let claimError = null;
+  if (!chain.ready() || !chain.verifier) claimError = "Contract/verifier not configured";
+  else {
+    const onchain = await chain.getOnchainUser(address);
+    if (!onchain.examPaid) claimError = "Exam fee not paid: call startLevelTest() with 0.05 MON first";
+    else signature = await chain.signExam(address, result.level);
+  }
+  res.json({ success: true, ...result, signature, claimError });
+}));
 
 app.get("/api/users/:address", wrap(async (req, res) => {
   if (!isAddress(req.params.address)) return res.status(400).json({ success: false, message: "Invalid address" });
