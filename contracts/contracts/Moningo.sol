@@ -8,43 +8,34 @@ import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/Mes
 import { Base64 } from "@openzeppelin/contracts/utils/Base64.sol";
 import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
-/// @title Moningo - stake MON, learn English daily, earn MON and an NFT certificate.
-/// @notice Daily: startStreak (stake 0.1 MON) -> lessons -> completeEnglishTask (stake back + reward).
-///         Certificate: startLevelTest (pay EXAM_FEE, goes to reward pool) -> backend-graded exam
-///         -> claimCertificate(level, sig) mints a soulbound on-chain SVG NFT with the CEFR level.
+/// @title Moningo - learn English daily, earn MON that grows with your streak, get NFT certificates.
+/// @notice Daily: finish lessons -> backend signs today's digest -> completeDaily(sig) pays a reward
+///         that grows with the streak (no stake needed). One claim per UTC day; missing a day resets
+///         the streak. Certificate: startLevelTest (fee funds the pool) -> backend-graded exam ->
+///         claimCertificate(level, sig) mints a soulbound on-chain SVG NFT with the CEFR level.
 contract Moningo is ERC721, Ownable {
     using Strings for uint256;
 
-    uint256 public constant DAILY_STAKE = 0.1 ether;
-    uint256 public constant REWARD = 0.05 ether;
     uint256 public constant EXAM_FEE = 0.05 ether;
     uint8 public constant MAX_LEVEL = 5; // 1=A1 .. 5=C1
 
-    /// @notice Backend key that attests a user actually finished the day's lessons.
+    /// @notice Backend key that attests a user actually finished the day's lessons / exam.
     address public verifier;
 
-    mapping(address => uint256) public streakTimestamps; // 0 = no active stake
-    mapping(address => uint256) public userStreaks;
+    mapping(address => uint256) public userStreaks; // streak as of the last claim
+    mapping(address => uint256) public lastClaimDay; // UTC day index of the last claim, 0 = never
     mapping(address => uint256) public certificateOf; // latest tokenId, 0 = none
     mapping(address => uint256) public examPaidAt; // 0 = no paid attempt pending
     mapping(address => uint8) public levelOf; // highest certified level
 
-    /// @notice MON currently held on behalf of users' active stakes (not rewardable).
-    uint256 public totalLocked;
     uint256 public nextTokenId = 1;
 
-    event StreakStarted(address indexed user, uint256 timestamp);
-    event TaskCompleted(address indexed user, uint256 newStreak);
-    event RewardPaid(address indexed user, uint256 amount);
-    event StreakLost(address indexed user, uint256 forfeited);
+    event DailyCompleted(address indexed user, uint256 streak, uint256 reward);
     event LevelTestStarted(address indexed user, uint256 timestamp);
     event CertificateMinted(address indexed user, uint256 indexed tokenId, uint8 level);
     event VerifierUpdated(address verifier);
 
-    error WrongStake();
-    error StreakActive();
-    error NoActiveStreak();
-    error StreakExpired();
+    error AlreadyClaimedToday();
     error BadSignature();
     error WrongFee();
     error NoPaidExam();
@@ -60,46 +51,47 @@ contract Moningo is ERC721, Ownable {
     /// @notice Anyone can top up the reward pool by sending MON.
     receive() external payable {}
 
-    // ----------------------------------------------------------------- core
+    // ----------------------------------------------------------------- daily
 
-    function startStreak() external payable {
-        if (msg.value != DAILY_STAKE) revert WrongStake();
-        uint256 started = streakTimestamps[msg.sender];
-        if (started != 0) {
-            if (block.timestamp <= started + 1 days) revert StreakActive();
-            // Previous stake expired unclaimed: it stays in the pool and the streak resets.
-            totalLocked -= DAILY_STAKE;
-            userStreaks[msg.sender] = 0;
-            emit StreakLost(msg.sender, DAILY_STAKE);
-        }
-        streakTimestamps[msg.sender] = block.timestamp;
-        totalLocked += DAILY_STAKE;
-        emit StreakStarted(msg.sender, block.timestamp);
+    /// @notice Daily reward tiers: the longer the streak, the more MON per day.
+    function rewardFor(uint256 streak) public pure returns (uint256) {
+        if (streak >= 1000) return 0.03 ether;
+        if (streak >= 365) return 0.025 ether;
+        if (streak >= 100) return 0.02 ether;
+        if (streak >= 30) return 0.015 ether;
+        if (streak >= 7) return 0.01 ether;
+        return 0.005 ether;
     }
 
-    /// @param signature Verifier signature over taskDigest(msg.sender), issued by the backend
-    ///        once the user's lessons are done. Single-use: the stake timestamp acts as nonce.
-    function completeEnglishTask(bytes calldata signature) external {
-        uint256 started = streakTimestamps[msg.sender];
-        if (started == 0) revert NoActiveStreak();
-        if (block.timestamp > started + 1 days) revert StreakExpired();
-        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(taskDigest(msg.sender));
+    function today() public view returns (uint256) {
+        return block.timestamp / 1 days;
+    }
+
+    /// @notice Streak still alive (claimed today or yesterday), otherwise 0.
+    function currentStreak(address user) public view returns (uint256) {
+        uint256 last = lastClaimDay[user];
+        return last != 0 && last + 1 >= today() ? userStreaks[user] : 0;
+    }
+
+    /// @param signature Verifier signature over dailyDigest(msg.sender): bound to user and UTC day.
+    function completeDaily(bytes calldata signature) external {
+        uint256 day = today();
+        if (lastClaimDay[msg.sender] == day) revert AlreadyClaimedToday();
+        bytes32 digest = MessageHashUtils.toEthSignedMessageHash(dailyDigest(msg.sender));
         if (ECDSA.recover(digest, signature) != verifier) revert BadSignature();
 
-        // Effects before interaction.
-        streakTimestamps[msg.sender] = 0;
-        totalLocked -= DAILY_STAKE;
-        uint256 newStreak = ++userStreaks[msg.sender];
+        uint256 streak = lastClaimDay[msg.sender] + 1 == day ? userStreaks[msg.sender] + 1 : 1;
+        userStreaks[msg.sender] = streak;
+        lastClaimDay[msg.sender] = day;
 
-        uint256 payout = DAILY_STAKE;
-        bool rewarded = rewardPool() >= REWARD + DAILY_STAKE; // pool computed before payout leaves
-        if (rewarded) payout += REWARD;
-
-        (bool ok, ) = msg.sender.call{ value: payout }("");
-        if (!ok) revert TransferFailed();
-
-        emit TaskCompleted(msg.sender, newStreak);
-        if (rewarded) emit RewardPaid(msg.sender, REWARD);
+        // An empty pool never blocks the streak; the reward is simply skipped.
+        uint256 reward = rewardFor(streak);
+        if (address(this).balance < reward) reward = 0;
+        if (reward > 0) {
+            (bool ok, ) = msg.sender.call{ value: reward }("");
+            if (!ok) revert TransferFailed();
+        }
+        emit DailyCompleted(msg.sender, streak, reward);
     }
 
     /// @notice Pay the exam fee to unlock one certification attempt. Fee funds daily rewards.
@@ -129,9 +121,9 @@ contract Moningo is ERC721, Ownable {
 
     // ---------------------------------------------------------------- views
 
-    /// @notice Message the backend signs (EIP-191 personal_sign over these 32 bytes).
-    function taskDigest(address user) public view returns (bytes32) {
-        return keccak256(abi.encodePacked(address(this), block.chainid, user, streakTimestamps[user]));
+    /// @notice Message the backend signs (EIP-191 personal_sign over these 32 bytes) for today's claim.
+    function dailyDigest(address user) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(address(this), block.chainid, "DAILY", user, today()));
     }
 
     /// @notice Message the backend signs for a graded level test. examPaidAt acts as nonce.
@@ -139,21 +131,31 @@ contract Moningo is ERC721, Ownable {
         return keccak256(abi.encodePacked(address(this), block.chainid, "EXAM", user, level, examPaidAt[user]));
     }
 
-    /// @notice MON available for rewards (balance minus active stakes).
+    /// @notice MON available for rewards.
     function rewardPool() public view returns (uint256) {
-        return address(this).balance - totalLocked;
+        return address(this).balance;
     }
 
+    /// @return streak live streak, claimedToday, nextReward (today's reward if unclaimed, else tomorrow's),
+    ///         certificateId, level, examPaid
     function getUser(
         address user
     )
         external
         view
-        returns (uint256 streak, uint256 stakedAt, bool active, uint256 certificateId, uint8 level, bool examPaid)
+        returns (
+            uint256 streak,
+            bool claimedToday,
+            uint256 nextReward,
+            uint256 certificateId,
+            uint8 level,
+            bool examPaid
+        )
     {
-        stakedAt = streakTimestamps[user];
-        active = stakedAt != 0 && block.timestamp <= stakedAt + 1 days;
-        return (userStreaks[user], stakedAt, active, certificateOf[user], levelOf[user], examPaidAt[user] != 0);
+        streak = currentStreak(user);
+        claimedToday = lastClaimDay[user] == today();
+        nextReward = rewardFor(streak + 1);
+        return (streak, claimedToday, nextReward, certificateOf[user], levelOf[user], examPaidAt[user] != 0);
     }
 
     // ---------------------------------------------------------- certificate
@@ -219,9 +221,7 @@ contract Moningo is ERC721, Ownable {
         emit VerifierUpdated(_verifier);
     }
 
-    /// @notice Withdraw only surplus pool funds; user stakes are never touchable.
     function withdrawPool(uint256 amount) external onlyOwner {
-        require(amount <= rewardPool(), "exceeds pool");
         (bool ok, ) = owner().call{ value: amount }("");
         if (!ok) revert TransferFailed();
     }
