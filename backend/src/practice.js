@@ -8,6 +8,8 @@ const { POOL, seeded } = require("./lessons");
 const { QUESTIONS: EXAM } = require("./level-test");
 
 const MAX_ENERGY = 10;
+const ENERGY_PER_PACK = 5;
+const MAX_BANKED_ENERGY = 30; // regen stops at 10; bought packs can top up to 30
 const REGEN_MS = 15 * 60 * 1000;
 const TOTAL_LEVELS = 50;
 const CHECKPOINT_EVERY = 10;
@@ -92,13 +94,15 @@ function practiceRouter(prisma) {
         maxEnergy: MAX_ENERGY,
         nextEnergyAt: nextAt,
         regenMinutes: REGEN_MS / 60000,
+        maxBankedEnergy: MAX_BANKED_ENERGY,
+        canBuy: energy + ENERGY_PER_PACK <= MAX_BANKED_ENERGY,
         level: user.practiceLevel,
         totalLevels: TOTAL_LEVELS,
         stars: Object.fromEntries(stars.map((s) => [s.level, s.stars])),
         checkpoints,
         contract: practice.address,
         packPrice: "0.01",
-        energyPerPack: 5,
+        energyPerPack: ENERGY_PER_PACK,
         checkpointReward: "0.02",
       });
     })
@@ -220,14 +224,16 @@ function practiceRouter(prisma) {
         return res.status(400).json({ message: "No EnergyPurchased event for this address" });
       const user = await getUser(address);
       const { energy } = energyNow(user);
+      // The UI blocks buying past the cap; the balance itself never exceeds MAX_BANKED_ENERGY.
+      const credited = Math.max(0, Math.min(bought, MAX_BANKED_ENERGY - energy));
       await prisma.$transaction([
-        prisma.energyPurchase.create({ data: { txHash, address, energy: bought } }),
+        prisma.energyPurchase.create({ data: { txHash, address, energy: credited } }),
         prisma.user.update({
           where: { id: user.id },
-          data: { energy: energy + bought, energyUpdatedAt: new Date() },
+          data: { energy: energy + credited, energyUpdatedAt: new Date() },
         }),
       ]);
-      res.json({ success: true, energy: energy + bought, credited: bought });
+      res.json({ success: true, energy: energy + credited, credited });
     })
   );
 
@@ -263,6 +269,7 @@ module.exports = {
   energyNow,
   questionsForLevel,
   MAX_ENERGY,
+  MAX_BANKED_ENERGY,
   REGEN_MS,
   TOTAL_LEVELS,
 };
