@@ -1,0 +1,22 @@
+# Build output & caches
+.next/
+node_modules/
+out/
+build/
+dist/
+cache/
+artifacts/
+
+# Generated files
+**/package-lock.json
+**/yarn.lock
+**/pnpm-lock.yaml
+next-env.d.ts
+tsconfig.tsbuildinfo
+*.min.js
+*.min.css
+
+# Misc
+.DS_Store
+*.log
+coverage/

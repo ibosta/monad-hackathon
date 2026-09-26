@@ -1,0 +1,24 @@
+{
+  "name": "moningo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Moningo — Web3 English learning streak platform on Monad Testnet.",
+  "scripts": {
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,sol,css}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,sol,css}\"",
+    "lint:frontend": "npm --prefix frontend run lint",
+    "lint:backend": "npm --prefix backend run lint",
+    "lint:contracts": "npm --prefix contracts run lint",
+    "lint": "npm run lint:frontend && npm run lint:backend && npm run lint:contracts",
+    "typecheck": "npm --prefix frontend run typecheck",
+    "build:frontend": "npm --prefix frontend run build",
+    "test:contracts": "npm --prefix contracts run test",
+    "test:backend": "npm --prefix backend run test",
+    "docker:build": "docker compose build",
+    "ci:local": "npm run format:check && npm run lint && npm run typecheck && npm run build:frontend && npm run test:contracts"
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3",
+    "prettier-plugin-solidity": "^1.4.1"
+  }
+}

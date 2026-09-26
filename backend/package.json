@@ -6,7 +6,10 @@
   "scripts": {
     "start": "prisma db push --skip-generate && node src/index.js",
     "dev": "prisma db push && node --watch src/index.js",
-    "test": "node --test test/"
+    "test": "node --test test/",
+    "lint": "eslint \"src/**/*.js\"",
+    "format": "prettier --write \"src/**/*.js\" \"*.json\"",
+    "format:check": "prettier --check \"src/**/*.js\" \"*.json\""
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
@@ -15,6 +18,8 @@
     "viem": "^2.56.9"
   },
   "devDependencies": {
+    "eslint": "^8.57.1",
+    "prettier": "^3.3.3",
     "prisma": "^6.19.3"
   }
 }

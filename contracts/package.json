@@ -6,12 +6,18 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "deploy:testnet": "hardhat run scripts/deploy.js --network monadTestnet",
-    "fund:testnet": "hardhat run scripts/fund.js --network monadTestnet"
+    "fund:testnet": "hardhat run scripts/fund.js --network monadTestnet",
+    "lint": "eslint \"scripts/**/*.js\" \"test/**/*.js\"",
+    "format": "prettier --write \"contracts/**/*.sol\" \"scripts/**/*.js\" \"test/**/*.js\"",
+    "format:check": "prettier --check \"contracts/**/*.sol\" \"scripts/**/*.js\" \"test/**/*.js\""
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@openzeppelin/contracts": "^5.6.1",
     "dotenv": "^18.0.4",
-    "hardhat": "^2.29.1"
+    "eslint": "^8.57.1",
+    "hardhat": "^2.29.1",
+    "prettier": "^3.3.3",
+    "prettier-plugin-solidity": "^1.4.1"
   }
 }
