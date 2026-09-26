@@ -4,13 +4,17 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { Loader2, ArrowLeft } from "lucide-react";
+import { motion } from "framer-motion";
+import { Confetti, spring } from "@/components/motion";
+import { QuestionCard } from "@/components/question-card";
+import { withTxToast } from "@/lib/tx-toast";
 import { Mascot } from "@/components/mascot";
 import { Certificate } from "@/components/certificate";
 import { TxBadge } from "@/components/tx-badge";
 import { WalletButton } from "@/components/wallet-button";
 import { api, type ExamResult } from "@/lib/api";
 import { EXAM_FEE_MON, EXAM_FEE_WEI, LEVEL_NAMES } from "@/lib/contract";
-import { explainError, useMoningoTx, useOnchainUser, type TxResult } from "@/hooks/use-moningo";
+import { useMoningoTx, useOnchainUser, type TxResult } from "@/hooks/use-moningo";
 import { cn } from "@/lib/utils";
 
 const LEVEL_TEXT: Record<string, string> = {
@@ -23,10 +27,17 @@ export default function ExamPage() {
   const { address, isConnected } = useAccount();
   const send = useMoningoTx();
   const { user, refetch } = useOnchainUser();
-  const { data: exam } = useQuery({ queryKey: ["level-test"], queryFn: api.levelTest });
+  // Each fetch draws a fresh random exam bound to this wallet on the server.
+  const { data: exam, refetch: drawExam } = useQuery({
+    queryKey: ["level-test", address],
+    queryFn: () => api.levelTest(address!),
+    enabled: Boolean(address),
+    staleTime: Infinity,
+  });
 
   const [step, setStep] = useState<"intro" | "quiz" | "result">("intro");
   const [index, setIndex] = useState(0);
+  const [dir, setDir] = useState(1);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [result, setResult] = useState<ExamResult | null>(null);
   const [payTx, setPayTx] = useState<TxResult | null>(null);
@@ -40,7 +51,7 @@ export default function ExamPage() {
     try {
       await fn();
     } catch (e) {
-      setError(explainError(e));
+      setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setBusy(null);
     }
@@ -48,8 +59,8 @@ export default function ExamPage() {
 
   const payAndStart = () =>
     run("Paying fee", async () => {
-      if (!user?.examPaid) setPayTx(await send("startLevelTest", [], EXAM_FEE_WEI));
-      await refetch();
+      if (!user?.examPaid) setPayTx(await withTxToast(`Pay ${EXAM_FEE_MON} MON exam fee`, () => send("startLevelTest", [], EXAM_FEE_WEI)));
+      await Promise.all([refetch(), drawExam()]);
       setAnswers({});
       setIndex(0);
       setStep("quiz");
@@ -65,7 +76,8 @@ export default function ExamPage() {
   const mint = () =>
     run("Minting", async () => {
       if (!result?.signature) throw new Error(result?.claimError ?? "No signature");
-      setMintTx(await send("claimCertificate", [result.level, result.signature]));
+      const sig = result.signature;
+      setMintTx(await withTxToast("Mint certificate NFT", () => send("claimCertificate", [result.level, sig])));
       await refetch();
     });
 
@@ -90,28 +102,24 @@ export default function ExamPage() {
     return (
       <div className="mx-auto max-w-2xl space-y-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => (index ? setIndex(index - 1) : setStep("intro"))} className="text-monad-300 hover:text-white" aria-label="Back">
+          <button onClick={() => { setDir(-1); if (index) setIndex(index - 1); else setStep("intro"); }} className="text-monad-300 hover:text-white" aria-label="Back">
             <ArrowLeft className="h-6 w-6" />
           </button>
           <div className="h-4 flex-1 overflow-hidden rounded-full bg-monad-900">
-            <div className="h-full rounded-full bg-gradient-to-r from-monad to-berry-400 transition-all" style={{ width: `${((index + 1) / questions.length) * 100}%` }} />
+            <motion.div className="h-full rounded-full bg-gradient-to-r from-monad to-berry-400" animate={{ width: `${((index + 1) / questions.length) * 100}%` }} transition={spring} />
           </div>
           <span className="font-black text-monad-200">{index + 1}/{questions.length}</span>
         </div>
-        <div className="flex items-end gap-3">
-          <Mascot size={80} mood="think" float={false} />
-          <div className="flex-1 rounded-2xl border-2 border-monad-700 bg-monad-900/60 p-4 text-lg font-extrabold text-white sm:text-xl">{q.question}</div>
-        </div>
-        <div className="grid gap-3">
-          {q.options.map((o) => (
-            <button key={o} className="option-tile" data-state={chosen === o ? "selected" : undefined} onClick={() => setAnswers({ ...answers, [q.id]: o })}>
-              {o}
-            </button>
-          ))}
-        </div>
+        <QuestionCard
+          q={{ ...q, type: `Question ${index + 1} · ${LEVEL_NAMES[q.level]}` }}
+          direction={dir}
+          mood="think"
+          states={Object.fromEntries(q.options.map((o) => [o, chosen === o ? "selected" : undefined]))}
+          onSelect={(o) => setAnswers({ ...answers, [q.id]: o })}
+        />
         <button
           disabled={!chosen || Boolean(busy)}
-          onClick={() => (last ? submit(answers) : setIndex(index + 1))}
+          onClick={() => { setDir(1); if (last) submit(answers); else setIndex(index + 1); }}
           className={cn("w-full", last ? "btn-berry" : "btn-monad")}
         >
           {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : last ? "Finish test" : "Next"}
@@ -124,18 +132,24 @@ export default function ExamPage() {
   if (step === "result" && result) {
     return (
       <Panel>
+        <Confetti fire={mintTx?.hash} />
         <Mascot mood={result.level >= 3 ? "cheer" : "happy"} size={130} />
         <p className="text-sm font-extrabold uppercase tracking-widest text-monad-300">Your English level</p>
-        <div className="flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-monad-300 via-monad to-monad-800 text-5xl font-black text-white shadow-2xl shadow-monad/50">
+        <motion.div
+          initial={{ scale: 0, rotate: -180 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ type: "spring", stiffness: 160, damping: 12, delay: 0.2 }}
+          className="flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-monad-300 via-monad to-monad-800 text-5xl font-black text-white shadow-2xl shadow-monad/50 ring-4 ring-monad-200/30"
+        >
           {result.levelName}
-        </div>
+        </motion.div>
         <p className="text-xl font-black text-white">{LEVEL_TEXT[result.levelName]}</p>
         <p className="text-monad-200">{result.correct}/{result.total} correct</p>
         {mintTx && user?.certificateId ? (
-          <div className="w-full space-y-3">
+          <motion.div initial={{ opacity: 0, rotateY: 90 }} animate={{ opacity: 1, rotateY: 0 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }} className="w-full space-y-3" style={{ perspective: 1000 }}>
             <TxBadge tx={mintTx} label="NFT minted" />
             <Certificate tokenId={user.certificateId} />
-          </div>
+          </motion.div>
         ) : (
           <button onClick={mint} disabled={Boolean(busy) || !result.signature} className="btn-green w-full sm:w-auto">
             {busy ? <><Loader2 className="h-5 w-5 animate-spin" /> {busy}…</> : `Mint ${result.levelName} certificate NFT`}

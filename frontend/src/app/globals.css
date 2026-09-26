@@ -136,6 +136,33 @@
   }
 }
 
+/* Mascot micro-animations */
+.mona-blink { transform-box: fill-box; transform-origin: center; animation: mona-blink 4.5s infinite; }
+.mona-flap path { transform-box: fill-box; animation: mona-flap 0.35s ease-in-out infinite alternate; }
+.mona-flap path:first-child { transform-origin: 100% 100%; }
+.mona-flap path:last-child { transform-origin: 0% 100%; animation-direction: alternate-reverse; }
+.mona-idle-wing path { transform-box: fill-box; transform-origin: 50% 0%; animation: mona-sway 3s ease-in-out infinite; }
+@keyframes mona-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes mona-flap { from { transform: rotate(-10deg); } to { transform: rotate(14deg); } }
+@keyframes mona-sway { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .mona-blink, .mona-flap path, .mona-idle-wing path, .metal-text, .animate-float { animation: none !important; }
+}
+
+/* Moving metallic sheen on hover for cards */
+.metal-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.07) 45%, transparent 60%);
+  background-size: 250% 100%;
+  background-position: 150% 0;
+  transition: background-position 0.9s ease;
+}
+.metal-card:hover::after { background-position: -50% 0; }
+
 @keyframes sheen {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
