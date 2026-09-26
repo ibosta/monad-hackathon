@@ -1,20 +1,35 @@
 "use client";
 
-import { useAccount, useBalance, useConnect, useDisconnect, useChainId } from "wagmi";
-import { useConnectModal } from "wagmi/connectors";
+import {
+  useAccount,
+  useBalance,
+  useConnect,
+  useDisconnect,
+  useChainId,
+  type Connector,
+} from "wagmi";
 import { useEffect, useState } from "react";
-import { Wallet, LogOut, Zap, AlertTriangle, ChevronDown } from "lucide-react";
+import { Wallet, LogOut, Zap, AlertTriangle, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { cn, shortAddress, formatMon } from "@/lib/utils";
 import { MONAD_CHAIN_ID } from "@/lib/wagmi";
 
 export function WalletButton() {
   const { address, isConnected } = useAccount();
-  const { open } = useConnectModal();
+  const { connectors, connectAsync, isPending, error: connectError } = useConnect();
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [connectingId, setConnectingId] = useState<string | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -24,6 +39,23 @@ export function WalletButton() {
   });
 
   const wrongNetwork = mounted && isConnected && chainId !== MONAD_CHAIN_ID;
+
+  const handleConnect = async (connector: Connector) => {
+    setConnectingId(connector.uid);
+    try {
+      await connectAsync({ connector });
+      setPickerOpen(false);
+    } catch (e) {
+      console.error("connect failed", e);
+    } finally {
+      setConnectingId(null);
+    }
+  };
+
+  // Deduplicate connectors by name (multi-injected discovery can create dups)
+  const uniqueConnectors = connectors.filter(
+    (c, i, arr) => arr.findIndex((x) => x.name === c.name) === i
+  );
 
   if (!mounted) {
     return (
@@ -36,10 +68,65 @@ export function WalletButton() {
 
   if (!isConnected) {
     return (
-      <Button variant="flame" onClick={() => open()} className="w-full sm:w-auto">
-        <Wallet className="h-4 w-4" />
-        Connect Wallet
-      </Button>
+      <>
+        <Button
+          variant="flame"
+          onClick={() => setPickerOpen(true)}
+          className="w-full sm:w-auto"
+        >
+          <Wallet className="h-4 w-4" />
+          Connect Wallet
+        </Button>
+        <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-monad" />
+                Connect a wallet
+              </DialogTitle>
+              <DialogDescription>
+                Choose a wallet to connect to Monad Testnet.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              {uniqueConnectors.length === 0 && (
+                <p className="rounded-xl border border-border bg-secondary/40 p-4 text-center text-sm text-muted-foreground">
+                  No wallet detected. Install{" "}
+                  <a
+                    href="https://metamask.io"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-monad hover:underline"
+                  >
+                    MetaMask
+                  </a>{" "}
+                  or another EVM wallet.
+                </p>
+              )}
+              {uniqueConnectors.map((connector) => (
+                <button
+                  key={connector.uid}
+                  onClick={() => handleConnect(connector)}
+                  disabled={isPending}
+                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-secondary/30 px-4 py-3 text-left text-sm font-medium transition-all hover:border-monad/40 hover:bg-secondary disabled:opacity-50"
+                >
+                  <span>{connector.name}</span>
+                  {connectingId === connector.uid ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-monad" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 -rotate-90 opacity-40" />
+                  )}
+                </button>
+              ))}
+              {connectError && (
+                <p className="text-sm text-destructive">
+                  {connectError.message || "Connection failed."}
+                </p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 
@@ -47,7 +134,7 @@ export function WalletButton() {
     return (
       <Button
         variant="destructive"
-        onClick={() => open()}
+        onClick={() => setPickerOpen(true)}
         className="w-full sm:w-auto"
       >
         <AlertTriangle className="h-4 w-4" />

@@ -1,11 +1,11 @@
-# docker compose up -d --build            -> backend API on :5000
+# docker compose up -d --build            -> backend API on :5001 (BACKEND_PORT)
 # docker compose --profile deploy run --rm deployer   -> deploy contract to Monad Testnet
 # docker compose --profile frontend up -d --build      -> + frontend on :3000 (needs frontend/Dockerfile)
 services:
   backend:
     build: ./backend
     ports:
-      - "5000:5000"
+      - "${BACKEND_PORT:-5001}:5000"   # macOS AirPlay holds host port 5000
     env_file:
       - path: .env
         required: false
@@ -33,7 +33,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:5000
+      NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-5001}
     depends_on:
       - backend
     restart: unless-stopped
