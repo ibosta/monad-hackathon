@@ -8,6 +8,7 @@ const levelTest = require("./level-test");
 const { practiceRouter } = require("./practice");
 const { attachDuelServer } = require("./duel");
 const games = require("./signer");
+const achievements = require("./achievements");
 
 const prisma = new PrismaClient();
 const app = express();
@@ -40,6 +41,9 @@ app.get("/api/config", wrap(async (_req, res) => {
     abi: chain.abi,
     duel: { address: games.duel.address || null, stake: "0.5", payout: "0.99", abi: games.duel.abi },
     practice: { address: games.practice.address || null, abi: games.practice.abi },
+    streakRewards: { address: achievements.streak.address || null },
+    badges: { address: achievements.badges.address || null },
+    duelsPerDay: achievements.DUELS_PER_DAY,
   });
 }));
 
@@ -201,6 +205,7 @@ app.get("/api/certificate/:tokenId", wrap(async (req, res) => {
 }));
 
 app.use("/api/practice", practiceRouter(prisma));
+app.use("/api", achievements.achievementsRouter(prisma));
 
 app.get("/api/duels/:address", wrap(async (req, res) => {
   if (!isAddress(req.params.address)) return res.status(400).json({ success: false, message: "Invalid address" });
@@ -208,7 +213,18 @@ app.get("/api/duels/:address", wrap(async (req, res) => {
   const rows = await prisma.duelResult.findMany({ where: { OR: [{ p1: a }, { p2: a }] }, orderBy: { createdAt: "desc" }, take: 20 });
   const wins = rows.filter((r) => r.winner === a).length;
   const draws = rows.filter((r) => !r.winner).length;
-  res.json({ played: rows.length, wins, draws, losses: rows.length - wins - draws, recent: rows.slice(0, 5) });
+  const [streaks, today] = await Promise.all([achievements.duelWinStreaks(prisma, a), achievements.duelsToday(prisma, a)]);
+  res.json({
+    played: rows.length,
+    wins,
+    draws,
+    losses: rows.length - wins - draws,
+    winStreak: streaks.current,
+    bestWinStreak: streaks.best,
+    todayPlayed: today,
+    dailyLimit: achievements.DUELS_PER_DAY,
+    recent: rows.slice(0, 5),
+  });
 }));
 
 app.get("/api/leaderboard", wrap(async (_req, res) => {

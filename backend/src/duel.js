@@ -7,6 +7,7 @@ const { client } = require("./chain");
 const { send, duel, account } = require("./signer");
 const { POOL } = require("./lessons");
 const { QUESTIONS: EXAM } = require("./level-test");
+const { duelsToday, DUELS_PER_DAY } = require("./achievements");
 
 const ROUNDS = 5;
 const QUESTION_MS = 12_000;
@@ -232,7 +233,14 @@ function attachDuelServer(server, prisma) {
 
   wss.on("connection", (ws) => {
     let me = null;
-    ws.on("message", (raw) => {
+    const limitReached = async (addr) => {
+      if (!prisma) return false;
+      const n = await duelsToday(prisma, addr);
+      if (n < DUELS_PER_DAY) return false;
+      ws.send(JSON.stringify({ t: "error", code: "DAILY_LIMIT", message: `Daily duel limit reached (${n}/${DUELS_PER_DAY}). Come back tomorrow!` }));
+      return true;
+    };
+    ws.on("message", async (raw) => {
       let msg;
       try {
         msg = JSON.parse(raw);
@@ -253,6 +261,7 @@ function attachDuelServer(server, prisma) {
         sendMatched(current, me); // resume the match the player is already in
         return;
       }
+      if ((msg.t === "queue" || msg.t === "bot") && (await limitReached(me))) return;
       if (msg.t === "queue") {
         if (waiting && waiting !== me && sockets.get(waiting)?.readyState === ws.OPEN) {
           const other = waiting;
