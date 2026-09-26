@@ -72,6 +72,8 @@ export type PracticeState = {
   maxEnergy: number;
   nextEnergyAt: number | null;
   regenMinutes: number;
+  maxBankedEnergy: number;
+  canBuy: boolean;
   level: number;
   totalLevels: number;
   stars: Record<number, number>;

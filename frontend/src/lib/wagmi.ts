@@ -1,52 +1,31 @@
 import { http, createConfig, createStorage } from "wagmi";
-import { mainnet } from "wagmi/chains";
+import { monadTestnet as viemMonadTestnet } from "viem/chains";
 import { injected } from "wagmi/connectors";
 
-/**
- * Monad Testnet chain definition.
- * Backend (backend/src/chain.js) uses viem's monadTestnet with chainId 10143.
- */
+const RPC_URL = process.env.NEXT_PUBLIC_MONAD_RPC_URL || "https://testnet-rpc.monad.xyz";
+
+/** viem's Monad Testnet definition (includes multicall3) with our RPC/explorer. */
 export const monadTestnet = {
-  id: 10143,
-  name: "Monad Testnet",
-  nativeCurrency: {
-    name: "Monad",
-    symbol: "MON",
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: {
-      http: [process.env.NEXT_PUBLIC_MONAD_RPC_URL || "https://testnet-rpc.monad.xyz"],
-    },
-    public: {
-      http: [process.env.NEXT_PUBLIC_MONAD_RPC_URL || "https://testnet-rpc.monad.xyz"],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "Monad Explorer",
-      url: "https://testnet.monadexplorer.com",
-    },
-  },
-  testnet: true,
+  ...viemMonadTestnet,
+  rpcUrls: { default: { http: [RPC_URL] } },
+  blockExplorers: { default: { name: "Monad Explorer", url: "https://testnet.monadexplorer.com" } },
 } as const;
 
 export const wagmiConfig = createConfig({
-  chains: [monadTestnet, mainnet],
+  chains: [monadTestnet],
   connectors: [injected({ shimDisconnect: true })],
   ssr: true,
-  storage: createStorage({
-    storage: typeof window !== "undefined" ? window.localStorage : undefined,
-  }),
+  storage: createStorage({ storage: typeof window !== "undefined" ? window.localStorage : undefined }),
+  // The public Monad RPC is rate limited (HTTP 429): merge reads into multicalls and
+  // JSON-RPC batches, poll gently and back off on errors.
+  batch: { multicall: { wait: 32 } },
+  pollingInterval: 2_000,
   transports: {
-    [monadTestnet.id]: http(
-      process.env.NEXT_PUBLIC_MONAD_RPC_URL || "https://testnet-rpc.monad.xyz"
-    ),
-    [mainnet.id]: http(),
+    [monadTestnet.id]: http(RPC_URL, { batch: { wait: 20, batchSize: 20 }, retryCount: 4, retryDelay: 600 }),
   },
   multiInjectedProviderDiscovery: true,
 });
 
-export const MONAD_CHAIN_ID = 10143;
+export const MONAD_CHAIN_ID = monadTestnet.id;
 export const MONAD_EXPLORER = "https://testnet.monadexplorer.com";
-export const MONAD_RPC = process.env.NEXT_PUBLIC_MONAD_RPC_URL || "https://testnet-rpc.monad.xyz";
+export const MONAD_RPC = RPC_URL;

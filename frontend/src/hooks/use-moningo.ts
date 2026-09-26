@@ -46,7 +46,7 @@ export function useOnchainUser() {
     functionName: "getUser",
     args: address ? [address] : undefined,
     chainId: MONAD_CHAIN_ID,
-    query: { enabled: Boolean(contract && address), refetchInterval: 4_000 },
+    query: { enabled: Boolean(contract && address), refetchInterval: 15_000 },
   });
   const d = q.data;
   const user: OnchainUser | null = d
@@ -67,7 +67,7 @@ export function useMonBalance() {
   return useBalance({
     address,
     chainId: MONAD_CHAIN_ID,
-    query: { enabled: Boolean(address), refetchInterval: 4_000 },
+    query: { enabled: Boolean(address), refetchInterval: 15_000 },
   });
 }
 
@@ -103,7 +103,7 @@ export function useChainTx() {
         gas,
         chainId: MONAD_CHAIN_ID,
       } as never);
-      const receipt = await client.waitForTransactionReceipt({ hash, pollingInterval: 250 });
+      const receipt = await client.waitForTransactionReceipt({ hash, pollingInterval: 500 });
       const ms = Math.round(performance.now() - t0);
       if (receipt.status !== "success") {
         // Re-simulate to surface the custom error name (WrongStake, BadSignature, …).
@@ -175,4 +175,14 @@ export function explainError(e: unknown): string {
     return e.shortMessage;
   }
   return e instanceof Error ? e.message : "Something went wrong";
+}
+
+/** Practice map state (energy, level, stars). Shared by the practice page and the navbar pill. */
+export function usePractice(address?: string) {
+  return useQuery({
+    queryKey: ["practice", address],
+    queryFn: () => api.practice(address!),
+    enabled: Boolean(address),
+    refetchInterval: 60_000,
+  });
 }
