@@ -13,6 +13,11 @@ export const moningoAbi = [
   },
   {
     "inputs": [],
+    "name": "AlreadyClaimedToday",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "BadLevel",
     "type": "error"
   },
@@ -153,11 +158,6 @@ export const moningoAbi = [
   },
   {
     "inputs": [],
-    "name": "NoActiveStreak",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "NoPaidExam",
     "type": "error"
   },
@@ -189,16 +189,6 @@ export const moningoAbi = [
     "type": "error"
   },
   {
-    "inputs": [],
-    "name": "StreakActive",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "StreakExpired",
-    "type": "error"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -222,11 +212,6 @@ export const moningoAbi = [
   {
     "inputs": [],
     "name": "WrongFee",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "WrongStake",
     "type": "error"
   },
   {
@@ -316,6 +301,31 @@ export const moningoAbi = [
       {
         "indexed": false,
         "internalType": "uint256",
+        "name": "streak",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "reward",
+        "type": "uint256"
+      }
+    ],
+    "name": "DailyCompleted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
         "name": "timestamp",
         "type": "uint256"
       }
@@ -340,82 +350,6 @@ export const moningoAbi = [
       }
     ],
     "name": "OwnershipTransferred",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      }
-    ],
-    "name": "RewardPaid",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "forfeited",
-        "type": "uint256"
-      }
-    ],
-    "name": "StreakLost",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
-      }
-    ],
-    "name": "StreakStarted",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "newStreak",
-        "type": "uint256"
-      }
-    ],
-    "name": "TaskCompleted",
     "type": "event"
   },
   {
@@ -458,19 +392,6 @@ export const moningoAbi = [
   },
   {
     "inputs": [],
-    "name": "DAILY_STAKE",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "EXAM_FEE",
     "outputs": [
       {
@@ -490,19 +411,6 @@ export const moningoAbi = [
         "internalType": "uint8",
         "name": "",
         "type": "uint8"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "REWARD",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -596,9 +504,47 @@ export const moningoAbi = [
         "type": "bytes"
       }
     ],
-    "name": "completeEnglishTask",
+    "name": "completeDaily",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "currentStreak",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "dailyDigest",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -679,14 +625,14 @@ export const moningoAbi = [
         "type": "uint256"
       },
       {
-        "internalType": "uint256",
-        "name": "stakedAt",
-        "type": "uint256"
+        "internalType": "bool",
+        "name": "claimedToday",
+        "type": "bool"
       },
       {
-        "internalType": "bool",
-        "name": "active",
-        "type": "bool"
+        "internalType": "uint256",
+        "name": "nextReward",
+        "type": "uint256"
       },
       {
         "internalType": "uint256",
@@ -726,6 +672,25 @@ export const moningoAbi = [
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "lastClaimDay",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -835,6 +800,25 @@ export const moningoAbi = [
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "streak",
+        "type": "uint256"
+      }
+    ],
+    "name": "rewardFor",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "rewardPool",
     "outputs": [
@@ -937,32 +921,6 @@ export const moningoAbi = [
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "startStreak",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "streakTimestamps",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "bytes4",
@@ -995,19 +953,13 @@ export const moningoAbi = [
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      }
-    ],
-    "name": "taskDigest",
+    "inputs": [],
+    "name": "today",
     "outputs": [
       {
-        "internalType": "bytes32",
+        "internalType": "uint256",
         "name": "",
-        "type": "bytes32"
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -1027,19 +979,6 @@ export const moningoAbi = [
         "internalType": "string",
         "name": "",
         "type": "string"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "totalLocked",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",

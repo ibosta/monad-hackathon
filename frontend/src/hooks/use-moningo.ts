@@ -52,8 +52,8 @@ export function useOnchainUser() {
   const user: OnchainUser | null = d
     ? {
         streak: Number(d[0]),
-        stakedAt: Number(d[1]),
-        active: d[2],
+        claimedToday: d[1],
+        nextReward: Number(d[2]) / 1e18,
         certificateId: Number(d[3]),
         level: Number(d[4]),
         examPaid: d[5],

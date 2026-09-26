@@ -21,8 +21,7 @@ export type AppConfig = {
   explorerUrl: string;
   faucetUrl: string;
   contractAddress: string | null;
-  dailyStake: string;
-  reward: string;
+  rewardTiers: { from: number; reward: string }[];
   examFee: string;
   rewardPool: string | null;
   lessonsPerDay: number;
@@ -45,7 +44,7 @@ export type StreakTree = {
   contract: string;
   streak: number;
   dailyReward: string;
-  milestones: { day: number; reward: string; reached: boolean; claimed: boolean }[];
+  milestones: { day: number; reward: string; dailyReward: string; reached: boolean; claimed: boolean }[];
   next: { day: number; reward: string } | null;
   daysToNext: number;
 };
@@ -118,7 +117,7 @@ export type UserResponse = {
   lessonsCompleted: number;
   todayProgress: { lessonId: number; score: number }[];
   completedToday: boolean;
-  rewardSignedToday: boolean;
+  claimedToday: boolean;
   onchain: OnchainUser | null;
 };
 
