@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Flame, Home, BookOpen, Award, Swords, User } from "lucide-react";
+import { Flame, Home, BookOpen, Award, Swords, User, Map } from "lucide-react";
 import { WalletButton } from "@/components/wallet-button";
 import { Mascot } from "@/components/mascot";
 import { spring } from "@/components/motion";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 const LINKS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/learn", label: "Daily", icon: BookOpen },
+  { href: "/practice", label: "Practice", icon: Map },
   { href: "/duel", label: "Duel", icon: Swords },
   { href: "/exam", label: "Test", icon: Award },
   { href: "/profile", label: "Profile", icon: User },
@@ -38,10 +39,10 @@ export function Navbar() {
             <motion.div whileHover={{ rotate: [0, -12, 12, 0], transition: { duration: 0.5 } }}>
               <Mascot size={40} float={false} />
             </motion.div>
-            <span className="metal-text text-xl font-black tracking-tight">Moningo</span>
+            <span className="metal-text hidden text-xl font-black tracking-tight sm:inline md:hidden lg:inline">Moningo</span>
           </Link>
 
-          <nav className="hidden items-center gap-1 md:flex">
+          <nav className="hidden items-center gap-0.5 md:flex">
             {LINKS.map(({ href, label, icon: Icon }) => {
               const active = isActive(pathname, href);
               return (
@@ -49,7 +50,7 @@ export function Navbar() {
                   key={href}
                   href={href}
                   className={cn(
-                    "relative flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-bold uppercase tracking-wide transition-colors",
+                    "relative flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wide transition-colors lg:text-sm",
                     active ? "text-white" : "text-monad-300/80 hover:text-monad-100"
                   )}
                 >
@@ -87,7 +88,7 @@ export function Navbar() {
       </motion.header>
 
       {/* Mobile bottom tab bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-monad-800/60 bg-[#0b0620]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-6 border-t border-monad-800/60 bg-[#0b0620]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
         {LINKS.map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href);
           return (
