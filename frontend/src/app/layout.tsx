@@ -3,6 +3,7 @@ import { Nunito } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { Navbar } from "@/components/navbar";
+import { AppHealth } from "@/components/app-health";
 
 const nunito = Nunito({ subsets: ["latin"], weight: ["400", "600", "700", "800", "900"], display: "swap" });
 
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${nunito.className} min-h-screen antialiased`}>
         <Providers>
           <Navbar />
+          <AppHealth />
           <main className="container max-w-5xl pb-28 pt-6 md:pb-12">{children}</main>
         </Providers>
       </body>

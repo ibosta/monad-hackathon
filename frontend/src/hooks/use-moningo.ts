@@ -14,7 +14,7 @@ type WriteFn = keyof typeof GAS;
 export type TxResult = { hash: `0x${string}`; ms: number };
 
 export function useAppConfig() {
-  return useQuery({ queryKey: ["config"], queryFn: api.config, staleTime: 15_000 });
+  return useQuery({ queryKey: ["config"], queryFn: api.config, staleTime: 15_000, retry: 2, refetchInterval: (q) => (q.state.status === "error" ? 5_000 : false) });
 }
 
 export function useContractAddress(): `0x${string}` | undefined {
