@@ -55,3 +55,17 @@
 ```bash
 # Frontend ve backend Docker imajlarını build eder
 ./scripts/dockerize-project.sh
+```
+
+## Responsive Tasarım Desteği
+Bu skill, **mobil ve masaüstü cihazlarda tam uyumluluk** sağlar.
+- **Tailwind CSS** ile responsive tasarım.
+- **Test Edilen Cihazlar**:
+  - Mobil: iPhone 12+, Samsung Galaxy S21+
+  - Masaüstü: 13" - 27" ekranlar
+- **Ekran Görüntüleri**:
+  - [`assets/mobile-screenshot.png`](assets/mobile-screenshot.png)
+  - [`assets/desktop-screenshot.png`](assets/desktop-screenshot.png)
+- **Viewport Testi**:
+  ```bash
+  ./scripts/check-responsive.sh

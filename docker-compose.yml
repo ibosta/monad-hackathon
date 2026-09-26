@@ -1,0 +1,42 @@
+# docker compose up -d --build            -> backend API on :5000
+# docker compose --profile deploy run --rm deployer   -> deploy contract to Monad Testnet
+# docker compose --profile frontend up -d --build      -> + frontend on :3000 (needs frontend/Dockerfile)
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: 5000
+      DATABASE_URL: file:/app/data/moningo.db
+    volumes:
+      - backend-data:/app/data
+      # deploy output (address + ABI) is picked up on restart without rebuilding
+      - ./backend/src/contract:/app/src/contract:ro
+    restart: unless-stopped
+
+  deployer:
+    build: ./contracts
+    profiles: ["deploy"]
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./backend/src/contract:/backend/src/contract
+
+  frontend:
+    build: ./frontend
+    profiles: ["frontend"]
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend-data:
