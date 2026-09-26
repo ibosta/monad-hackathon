@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
-import { Flame, Gift, Check, Lock, Loader2, X } from "lucide-react";
+import { Flame, Gift, Check, Lock, Loader2 } from "lucide-react";
 import { Mascot } from "@/components/mascot";
+import { Modal } from "@/components/modal";
 import { Confetti, CountUp, spring } from "@/components/motion";
 import { WalletButton } from "@/components/wallet-button";
 import { api, type StreakTree } from "@/lib/api";
@@ -135,8 +136,8 @@ export default function StreakPage() {
       <section className="metal-card relative overflow-hidden px-4 pb-10 pt-6">
         <p className="mb-4 text-center text-sm font-bold text-monad-200">
           Every day you finish the daily quest earns{" "}
-          <b className="text-white">{tree.dailyReward} MON</b>. Milestones add a bonus on top. Tap a
-          fruit.
+          <b className="text-white">{tree.dailyReward} MON</b> today, and the daily reward grows
+          with your streak. Milestones add a one-time bonus on top. Tap a fruit.
         </p>
         <div className="relative mx-auto" style={{ height: ms.length * 92 + 60 }}>
           {/* trunk */}
@@ -217,63 +218,37 @@ export default function StreakPage() {
         </div>
       </section>
 
-      <AnimatePresence>
+      <Modal open={Boolean(open)} onClose={() => setOpen(null)}>
         {open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setOpen(null)}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center"
-          >
-            <motion.div
-              initial={{ y: 80, scale: 0.95 }}
-              animate={{ y: 0, scale: 1 }}
-              exit={{ y: 80, scale: 0.95 }}
-              transition={spring}
-              onClick={(e) => e.stopPropagation()}
-              className="metal-card relative flex w-full max-w-sm flex-col items-center gap-3 p-6 text-center"
-            >
-              <button
-                onClick={() => setOpen(null)}
-                className="absolute right-4 top-4 text-monad-300"
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" />
+          <>
+            <span className="text-5xl">{open.claimed ? "✅" : open.reached ? "🍇" : "🌱"}</span>
+            <h2 className="metal-text text-2xl font-black">Day {open.day} milestone</h2>
+            <DayBreakdown
+              day={open.day}
+              daily={Number(open.dailyReward)}
+              bonus={Number(open.reward)}
+            />
+            {open.claimed ? (
+              <p className="font-bold text-duo">Already claimed</p>
+            ) : open.reached ? (
+              <button onClick={() => claim(open)} disabled={busy} className="btn-green w-full">
+                {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Gift className="h-5 w-5" />}{" "}
+                Claim +{open.reward} MON
               </button>
-              <span className="text-5xl">{open.claimed ? "✅" : open.reached ? "🍇" : "🌱"}</span>
-              <h2 className="metal-text text-2xl font-black">Day {open.day} milestone</h2>
-              <DayBreakdown
-                day={open.day}
-                daily={Number(tree.dailyReward)}
-                bonus={Number(open.reward)}
-              />
-              {open.claimed ? (
-                <p className="font-bold text-duo">Already claimed</p>
-              ) : open.reached ? (
-                <button onClick={() => claim(open)} disabled={busy} className="btn-green w-full">
-                  {busy ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <Gift className="h-5 w-5" />
-                  )}{" "}
-                  Claim +{open.reward} MON
-                </button>
-              ) : (
-                <>
-                  <p className="text-monad-100">
-                    {open.day - tree.streak} more day{open.day - tree.streak === 1 ? "" : "s"} to
-                    unlock.
-                  </p>
-                  <Link href="/learn" className="btn-monad w-full">
-                    Do today&apos;s quest
-                  </Link>
-                </>
-              )}
-            </motion.div>
-          </motion.div>
+            ) : (
+              <>
+                <p className="text-monad-100">
+                  {open.day - tree.streak} more day{open.day - tree.streak === 1 ? "" : "s"} to
+                  unlock.
+                </p>
+                <Link href="/learn" className="btn-monad w-full">
+                  Do today&apos;s quest
+                </Link>
+              </>
+            )}
+          </>
         )}
-      </AnimatePresence>
+      </Modal>
     </div>
   );
 }
@@ -285,7 +260,7 @@ function DayBreakdown({ day, daily, bonus }: { day: number; daily: number; bonus
       <Row k="Milestone bonus" v={`+${bonus} MON`} gold />
       <div className="my-1 h-px bg-monad-700" />
       <Row k={`You earn on day ${day}`} v={`+${(daily + bonus).toFixed(3)} MON`} big />
-      <Row k={`Total earned in ${day} days`} v={`≈ ${(daily * day).toFixed(2)} MON + bonuses`} />
+      <Row k="Daily reward from then on" v={`${daily} MON / day`} />
     </div>
   );
 }
