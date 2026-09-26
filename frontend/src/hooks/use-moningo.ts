@@ -53,36 +53,36 @@ export function useMonBalance() {
   return useBalance({ address, chainId: MONAD_CHAIN_ID, query: { enabled: Boolean(address), refetchInterval: 4_000 } });
 }
 
-/** Sends a Moningo transaction with a fixed Monad-tuned gas limit and waits for the receipt. */
-export function useMoningoTx() {
-  const contract = useContractAddress();
+type ChainTx = {
+  address: `0x${string}` | undefined;
+  abi: readonly unknown[];
+  functionName: string;
+  args?: readonly unknown[];
+  value?: bigint;
+  gas: bigint;
+};
+
+/** Sends any contract write on Monad with an explicit gas limit (Monad bills the full limit) and waits for the receipt. */
+export function useChainTx() {
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
   const client = usePublicClient({ chainId: MONAD_CHAIN_ID });
 
   return useCallback(
-    async (functionName: WriteFn, args: readonly unknown[] = [], value?: bigint): Promise<TxResult> => {
-      if (!contract) throw new Error("Contract not deployed yet (backend has no address).");
+    async ({ address, abi, functionName, args = [], value, gas }: ChainTx): Promise<TxResult> => {
+      if (!address) throw new Error("Contract not deployed yet (backend has no address).");
       if (!client) throw new Error("No Monad RPC client");
       if (chainId !== MONAD_CHAIN_ID) await switchChainAsync({ chainId: MONAD_CHAIN_ID });
 
       const t0 = performance.now();
-      const hash = await writeContractAsync({
-        address: contract,
-        abi: moningoAbi,
-        functionName,
-        args,
-        value,
-        gas: GAS[functionName],
-        chainId: MONAD_CHAIN_ID,
-      } as Parameters<typeof writeContractAsync>[0]);
+      const hash = await writeContractAsync({ address, abi, functionName, args, value, gas, chainId: MONAD_CHAIN_ID } as never);
       const receipt = await client.waitForTransactionReceipt({ hash, pollingInterval: 250 });
       const ms = Math.round(performance.now() - t0);
       if (receipt.status !== "success") {
         // Re-simulate to surface the custom error name (WrongStake, BadSignature, …).
         try {
-          await client.simulateContract({ address: contract, abi: moningoAbi, functionName, args, value, account: receipt.from } as never);
+          await client.simulateContract({ address, abi, functionName, args, value, account: receipt.from } as never);
         } catch (e) {
           throw new Error(explainError(e));
         }
@@ -90,7 +90,18 @@ export function useMoningoTx() {
       }
       return { hash, ms };
     },
-    [contract, client, chainId, switchChainAsync, writeContractAsync]
+    [client, chainId, switchChainAsync, writeContractAsync]
+  );
+}
+
+/** Moningo (daily/exam) transactions with Monad-tuned gas limits. */
+export function useMoningoTx() {
+  const contract = useContractAddress();
+  const send = useChainTx();
+  return useCallback(
+    (functionName: WriteFn, args: readonly unknown[] = [], value?: bigint) =>
+      send({ address: contract, abi: moningoAbi, functionName, args, value, gas: GAS[functionName] }),
+    [contract, send]
   );
 }
 
@@ -103,6 +114,13 @@ const FRIENDLY: Record<string, string> = {
   WrongFee: "Exam fee must be exactly 0.05 MON.",
   NoPaidExam: "Pay the exam fee first.",
   BadLevel: "Invalid level.",
+  NotYourMatch: "That match isn't yours.",
+  AlreadyJoined: "You already staked for this duel.",
+  MatchClosed: "This duel is already closed.",
+  WrongPayment: "Wrong energy pack payment.",
+  AlreadyClaimed: "Checkpoint reward already claimed.",
+  PoolEmpty: "Reward pool is empty right now. Try later.",
+  BadCheckpoint: "That level is not a checkpoint.",
 };
 
 export function explainError(e: unknown): string {

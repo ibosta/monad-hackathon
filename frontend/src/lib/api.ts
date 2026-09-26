@@ -1,5 +1,8 @@
 import type { OnchainUser } from "./contract";
 
+export const WS_URL = () =>
+  (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001").replace(/^http/, "ws") + "/ws";
+
 export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
 
 export type Lesson = { id: number; type: string; question: string; options: string[]; answer: string; speak?: string };
@@ -16,7 +19,28 @@ export type AppConfig = {
   examFee: string;
   rewardPool: string | null;
   lessonsPerDay: number;
+  duel: { address: string | null; stake: string; payout: string };
+  practice: { address: string | null };
 };
+
+export type DuelStats = { played: number; wins: number; draws: number; losses: number };
+
+export type PracticeState = {
+  energy: number;
+  maxEnergy: number;
+  nextEnergyAt: number | null;
+  regenMinutes: number;
+  level: number;
+  totalLevels: number;
+  stars: Record<number, number>;
+  checkpoints: { level: number; reached: boolean; claimed: boolean }[];
+  contract: string;
+  packPrice: string;
+  energyPerPack: number;
+  checkpointReward: string;
+};
+
+export type PracticeQuestion = { id: number; type: string; question: string; options: string[]; speak?: string };
 
 export type SyncProgressResponse = {
   success: boolean;
@@ -87,5 +111,16 @@ export const api = {
   user: (address: string) => request<UserResponse>(`/api/users/${address}`),
   leaderboard: () => request<LeaderboardEntry[]>("/api/leaderboard"),
   certificates: (address: string) => request<CertificateInfo[]>(`/api/certificates/${address}`),
+  duelStats: (address: string) => request<DuelStats>(`/api/duels/${address}`),
+  practice: (address: string) => request<PracticeState>(`/api/practice/${address}`),
+  practiceStart: (address: string, level: number) =>
+    post<{ level: number; energy: number; questions: PracticeQuestion[] }>("/api/practice/start", { address, level }),
+  practiceAnswer: (address: string, questionId: number, option: string) =>
+    post<{ correct: boolean; answer: string }>("/api/practice/answer", { address, questionId, option }),
+  practiceFinish: (address: string) =>
+    post<{ passed: boolean; stars: number; correct: number; total: number; level: number; checkpoint: number | null }>("/api/practice/finish", { address }),
+  creditEnergy: (address: string, txHash: string) => post<{ energy: number; credited: number }>("/api/practice/energy/credit", { address, txHash }),
+  checkpointSignature: (address: string, level: number) =>
+    post<{ signature: `0x${string}` }>("/api/practice/checkpoint-signature", { address, level }),
   certificate: (tokenId: number) => request<CertificateInfo & { valid: boolean }>(`/api/certificate/${tokenId}`),
 };
