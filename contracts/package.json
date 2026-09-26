@@ -9,7 +9,8 @@
     "fund:testnet": "hardhat run scripts/fund.js --network monadTestnet",
     "lint": "eslint \"scripts/**/*.js\" \"test/**/*.js\"",
     "format": "prettier --write \"contracts/**/*.sol\" \"scripts/**/*.js\" \"test/**/*.js\"",
-    "format:check": "prettier --check \"contracts/**/*.sol\" \"scripts/**/*.js\" \"test/**/*.js\""
+    "format:check": "prettier --check \"contracts/**/*.sol\" \"scripts/**/*.js\" \"test/**/*.js\"",
+    "deploy:games": "hardhat run scripts/deploy-games.js --network monadTestnet"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
