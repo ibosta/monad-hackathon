@@ -153,13 +153,11 @@ app.post(
       ? await prisma.progress.count({ where: { userId: user.id, day: today(), score: { gt: 0 } } })
       : 0;
     if (done < LESSONS_PER_DAY)
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: `Finish today's lessons first (${done}/${LESSONS_PER_DAY})`,
-        });
-    const before = await chain.getOnchainUser(address);
+      return res.status(403).json({
+        success: false,
+        message: `Finish today's lessons first (${done}/${LESSONS_PER_DAY})`,
+      });
+    const before = await chain.getOnchainUser(address, { fresh: true });
     if (before?.claimedToday)
       return res
         .status(409)
@@ -177,7 +175,7 @@ app.post(
       return res
         .status(502)
         .json({ success: false, message: "Claim transaction reverted", txHash: hash });
-    const after = await chain.getOnchainUser(address).catch(() => null);
+    const after = await chain.getOnchainUser(address, { fresh: true }).catch(() => null);
     console.log(`[daily] sponsored claim ${address} streak=${after?.streak} tx=${hash}`);
     res.json({
       success: true,
@@ -218,7 +216,7 @@ app.post(
 async function issueSignature(address) {
   if (!chain.ready() || !chain.verifier)
     return { signature: null, claimError: "Contract/verifier not configured" };
-  const onchain = await chain.getOnchainUser(address);
+  const onchain = await chain.getOnchainUser(address, { fresh: true });
   if (onchain?.claimedToday)
     return { signature: null, claimError: "Today's reward already claimed. Come back tomorrow!" };
   return { signature: await chain.signCompletion(address), claimError: null };
@@ -267,7 +265,7 @@ app.post(
     let claimError = null;
     if (!chain.ready() || !chain.verifier) claimError = "Contract/verifier not configured";
     else {
-      const onchain = await chain.getOnchainUser(address);
+      const onchain = await chain.getOnchainUser(address, { fresh: true });
       if (!onchain.examPaid)
         claimError = "Exam fee not paid: call startLevelTest() with 0.05 MON first";
       else signature = await chain.signExam(address, result.level);

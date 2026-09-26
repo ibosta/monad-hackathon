@@ -30,33 +30,71 @@ function ready() {
   return !OFFLINE && Boolean(CONTRACT_ADDRESS && isAddress(CONTRACT_ADDRESS));
 }
 
-async function getOnchainUser(address) {
-  if (!ready()) return null;
-  const [streak, claimedToday, nextReward, certificateId, level, examPaid] =
-    await client.readContract({
-      address: CONTRACT_ADDRESS,
-      abi,
-      functionName: "getUser",
-      args: [getAddress(address)],
+// ---------------------------------------------------------------------------
+// Tiny read cache: the public Monad RPC allows ~15 req/s. Concurrent identical reads share
+// one request, results live for a few seconds, and on an RPC error the last good value is
+// served (stale-if-error) instead of failing the API call.
+const cache = new Map(); // key -> { value, at, pending }
+
+async function cached(key, ttlMs, load, { fresh = false } = {}) {
+  const hit = cache.get(key);
+  if (!fresh && hit && "value" in hit && Date.now() - hit.at < ttlMs) return hit.value;
+  if (!fresh && hit?.pending) return hit.pending;
+  const pending = load()
+    .then((value) => {
+      cache.set(key, { value, at: Date.now() });
+      return value;
+    })
+    .catch((err) => {
+      if (hit && "value" in hit) {
+        cache.set(key, hit);
+        console.warn(
+          `[chain] ${key}: RPC failed (${err.shortMessage || err.message}), serving cached value`
+        );
+        return hit.value;
+      }
+      cache.delete(key);
+      throw err;
     });
-  return {
-    streak: Number(streak),
-    claimedToday,
-    nextReward: formatEther(nextReward),
-    certificateId: Number(certificateId),
-    level: Number(level),
-    examPaid,
-  };
+  cache.set(key, { ...(hit || {}), pending });
+  return pending;
+}
+
+/** @param opts.fresh bypass the cache (use right after a write, e.g. a claim or mint). */
+async function getOnchainUser(address, opts) {
+  if (!ready()) return null;
+  const user = getAddress(address);
+  return cached(
+    `user:${user}`,
+    4_000,
+    async () => {
+      const [streak, claimedToday, nextReward, certificateId, level, examPaid] =
+        await client.readContract({
+          address: CONTRACT_ADDRESS,
+          abi,
+          functionName: "getUser",
+          args: [user],
+        });
+      return {
+        streak: Number(streak),
+        claimedToday,
+        nextReward: formatEther(nextReward),
+        certificateId: Number(certificateId),
+        level: Number(level),
+        examPaid,
+      };
+    },
+    opts
+  );
 }
 
 async function getPool() {
   if (!ready()) return null;
-  const pool = await client.readContract({
-    address: CONTRACT_ADDRESS,
-    abi,
-    functionName: "rewardPool",
-  });
-  return pool.toString();
+  return cached("pool", 15_000, async () =>
+    (
+      await client.readContract({ address: CONTRACT_ADDRESS, abi, functionName: "rewardPool" })
+    ).toString()
+  );
 }
 
 /** Signs today's dailyDigest(user) so the user can call completeDaily(signature). */
@@ -99,9 +137,18 @@ const certCache = new Map();
 
 async function getCertificates(owner) {
   if (!ready()) return [];
-  const next = Number(
-    await client.readContract({ address: CONTRACT_ADDRESS, abi, functionName: "nextTokenId" })
-  );
+  let next;
+  try {
+    next = await cached("nextTokenId", 5_000, async () =>
+      Number(
+        await client.readContract({ address: CONTRACT_ADDRESS, abi, functionName: "nextTokenId" })
+      )
+    );
+  } catch (err) {
+    // RPC unavailable and nothing cached yet: answer with what we know instead of a 500.
+    console.warn(`[chain] certificates: ${err.shortMessage || err.message}`);
+    next = Math.max(1, ...[...certCache.keys()].map((id) => id + 1));
+  }
   const missing = [];
   for (let id = 1; id < next; id++) if (!certCache.has(id)) missing.push(BigInt(id));
   if (missing.length) {

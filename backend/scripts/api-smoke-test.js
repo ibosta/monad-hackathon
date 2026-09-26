@@ -84,7 +84,10 @@ function assertStatus(actual, expected, label) {
 }
 
 function assertAnyStatus(actual, expected, label) {
-  assert.ok(expected.includes(actual), `${label} expected HTTP ${expected.join("/")}, got ${actual}`);
+  assert.ok(
+    expected.includes(actual),
+    `${label} expected HTTP ${expected.join("/")}, got ${actual}`
+  );
 }
 
 async function healthAndConfig() {
@@ -109,7 +112,9 @@ async function lessonsAndProgress() {
   const lessons = await get("/api/english-lessons");
   assertStatus(lessons.status, 200, "lessons");
   assert.equal(lessons.body.length, 3);
-  assert.ok(lessons.body.every((lesson) => lesson.id && lesson.question && Array.isArray(lesson.options)));
+  assert.ok(
+    lessons.body.every((lesson) => lesson.id && lesson.question && Array.isArray(lesson.options))
+  );
 
   const badWallet = await post("/api/sync-progress", {
     walletAddress: "not-a-wallet",
@@ -157,7 +162,9 @@ async function lessonsAndProgress() {
   const leaderboard = await get("/api/leaderboard");
   assertStatus(leaderboard.status, 200, "leaderboard");
   assert.ok(Array.isArray(leaderboard.body));
-  assert.ok(leaderboard.body.some((row) => row.walletAddress.toLowerCase() === wallet.toLowerCase()));
+  assert.ok(
+    leaderboard.body.some((row) => row.walletAddress.toLowerCase() === wallet.toLowerCase())
+  );
 }
 
 async function levelTestFlow() {
@@ -201,7 +208,10 @@ async function practiceFlow() {
   assertAnyStatus(locked.status, [400, 402], "practice locked/high level");
 
   if (status.body.energy < 1) {
-    skip("practice playable level flow", "wallet has no energy; use a fresh TEST_WALLET or wait for regeneration");
+    skip(
+      "practice playable level flow",
+      "wallet has no energy; use a fresh TEST_WALLET or wait for regeneration"
+    );
     return;
   }
 
@@ -272,7 +282,10 @@ async function claimValidation() {
   const invalidBadge = await post("/api/badges/signature", { address: wallet, id: 1 });
   assertStatus(invalidBadge.status, 400, "invalid badge signature request");
 
-  const checkpoint = await post("/api/practice/checkpoint-signature", { address: wallet, level: 10 });
+  const checkpoint = await post("/api/practice/checkpoint-signature", {
+    address: wallet,
+    level: 10,
+  });
   assertAnyStatus(checkpoint.status, [400, 403, 200], "checkpoint signature graceful response");
   assert.notEqual(checkpoint.status, 500, "checkpoint signature must not return 500");
 }
