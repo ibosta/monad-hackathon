@@ -16,7 +16,7 @@ contract Moningo is ERC721, Ownable {
     using Strings for uint256;
 
     uint256 public constant DAILY_STAKE = 0.1 ether;
-    uint256 public constant REWARD = 0.01 ether;
+    uint256 public constant REWARD = 0.05 ether;
     uint256 public constant EXAM_FEE = 0.05 ether;
     uint8 public constant MAX_LEVEL = 5; // 1=A1 .. 5=C1
 

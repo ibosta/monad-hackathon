@@ -3,7 +3,7 @@ const { ethers } = require("hardhat");
 const { time, loadFixture } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
 
 const STAKE = ethers.parseEther("0.1");
-const REWARD = ethers.parseEther("0.01");
+const REWARD = ethers.parseEther("0.05");
 
 describe("Moningo", () => {
   async function deploy() {
