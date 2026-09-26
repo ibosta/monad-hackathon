@@ -1,7 +1,6 @@
 // Backend-sent transactions (duel referee + practice bot). Serialized to avoid nonce races.
 const { createWalletClient, http } = require("viem");
-const { monadTestnet } = require("viem/chains");
-const { client, verifier, RPC_URL } = require("./chain");
+const { client, verifier, RPC_URL, CHAIN } = require("./chain");
 
 const load = (name) => {
   try {
@@ -13,7 +12,7 @@ const load = (name) => {
 const duel = load("duel");
 const practice = load("practice");
 
-const wallet = verifier ? createWalletClient({ account: verifier, chain: monadTestnet, transport: http(RPC_URL, { retryCount: 4 }) }) : null;
+const wallet = verifier ? createWalletClient({ account: verifier, chain: CHAIN, transport: http(RPC_URL, { retryCount: 4 }) }) : null;
 
 let queue = Promise.resolve();
 

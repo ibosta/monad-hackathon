@@ -1,16 +1,18 @@
 const { createPublicClient, http, isAddress, getAddress } = require("viem");
 const { privateKeyToAccount } = require("viem/accounts");
-const { monadTestnet } = require("viem/chains");
+const { monadTestnet, hardhat } = require("viem/chains");
 const deployment = require("./contract/moningo.json");
 
 const RPC_URL = process.env.MONAD_RPC_URL || "https://testnet-rpc.monad.xyz";
+// Local hardhat node for tests/dev; Monad Testnet otherwise.
+const CHAIN = /127\.0\.0\.1|localhost/.test(RPC_URL) ? hardhat : monadTestnet;
 const EXPLORER_URL = "https://testnet.monadexplorer.com";
 const CONTRACT_ADDRESS = process.env.MONINGO_ADDRESS || deployment.address || null;
 const { abi } = deployment;
 
 // Public Monad RPC is rate limited (15 req/s): batch calls and retry with backoff.
 const client = createPublicClient({
-  chain: monadTestnet,
+  chain: CHAIN,
   transport: http(RPC_URL, { batch: { batchSize: 10, wait: 16 }, retryCount: 6, retryDelay: 350 }),
 });
 
@@ -126,4 +128,5 @@ module.exports = {
   EXPLORER_URL,
   CONTRACT_ADDRESS,
   CHAIN_ID: monadTestnet.id,
+  CHAIN,
 };

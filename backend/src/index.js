@@ -5,6 +5,9 @@ const { isAddress, getAddress, formatEther } = require("viem");
 const chain = require("./chain");
 const { lessonsForDay, today, LESSONS_PER_DAY } = require("./lessons");
 const levelTest = require("./level-test");
+const { practiceRouter } = require("./practice");
+const { attachDuelServer } = require("./duel");
+const games = require("./signer");
 
 const prisma = new PrismaClient();
 const app = express();
@@ -35,6 +38,8 @@ app.get("/api/config", wrap(async (_req, res) => {
     rewardPool: pool ? formatEther(BigInt(pool)) : null,
     lessonsPerDay: LESSONS_PER_DAY,
     abi: chain.abi,
+    duel: { address: games.duel.address || null, stake: "0.5", payout: "0.99", abi: games.duel.abi },
+    practice: { address: games.practice.address || null, abi: games.practice.abi },
   });
 }));
 
@@ -195,6 +200,17 @@ app.get("/api/certificate/:tokenId", wrap(async (req, res) => {
   }
 }));
 
+app.use("/api/practice", practiceRouter(prisma));
+
+app.get("/api/duels/:address", wrap(async (req, res) => {
+  if (!isAddress(req.params.address)) return res.status(400).json({ success: false, message: "Invalid address" });
+  const a = getAddress(req.params.address);
+  const rows = await prisma.duelResult.findMany({ where: { OR: [{ p1: a }, { p2: a }] }, orderBy: { createdAt: "desc" }, take: 20 });
+  const wins = rows.filter((r) => r.winner === a).length;
+  const draws = rows.filter((r) => !r.winner).length;
+  res.json({ played: rows.length, wins, draws, losses: rows.length - wins - draws, recent: rows.slice(0, 5) });
+}));
+
 app.get("/api/leaderboard", wrap(async (_req, res) => {
   const users = await prisma.user.findMany({
     orderBy: [{ totalScore: "desc" }, { lessonsCompleted: "desc" }],
@@ -211,7 +227,8 @@ app.use((err, _req, res, _next) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
+    attachDuelServer(server, prisma);
     console.log(`Moningo API on :${PORT} | contract=${chain.CONTRACT_ADDRESS || "not deployed"} | verifier=${chain.verifier?.address || "missing"}`);
   });
 }

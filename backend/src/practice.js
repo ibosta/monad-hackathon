@@ -119,9 +119,11 @@ function practiceRouter(prisma) {
     const stars = passed ? correct : 0;
     const user = await getUser(address);
     if (passed) {
+      const key = { userId_level: { userId: user.id, level: s.level } };
+      const prev = await prisma.practiceStar.findUnique({ where: key });
       await prisma.practiceStar.upsert({
-        where: { userId_level: { userId: user.id, level: s.level } },
-        update: { stars: { set: Math.max(stars, (await prisma.practiceStar.findUnique({ where: { userId_level: { userId: user.id, level: s.level } } }))?.stars ?? 0) } },
+        where: key,
+        update: { stars: Math.max(stars, prev?.stars ?? 0) },
         create: { userId: user.id, level: s.level, stars },
       });
       if (s.level > user.practiceLevel) {
