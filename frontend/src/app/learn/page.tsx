@@ -1,430 +1,240 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
-import {
-  Flame,
-  Check,
-  X,
-  Loader2,
-  PartyPopper,
-  Trophy,
-  AlertCircle,
-  ArrowRight,
-  RotateCcw,
-  Coins,
-  ExternalLink,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { fetchLessons, syncProgress, type Lesson } from "@/lib/api";
-import { useMoningoUser, useClaimAndComplete } from "@/hooks/use-moningo";
-import { DAILY_STAKE_MON, REWARD_MON, getContractAddress } from "@/lib/contract";
-import { MONAD_EXPLORER } from "@/lib/wagmi";
+import { Loader2, X, Heart } from "lucide-react";
+import { Mascot, type MascotMood } from "@/components/mascot";
+import { TxBadge } from "@/components/tx-badge";
+import { WalletButton } from "@/components/wallet-button";
+import { api, type Lesson } from "@/lib/api";
+import { DAILY_STAKE_MON, DAILY_STAKE_WEI, REWARD_MON } from "@/lib/contract";
+import { explainError, useMoningoTx, useOnchainUser, type TxResult } from "@/hooks/use-moningo";
 import { cn } from "@/lib/utils";
 
-type Phase = "idle" | "answering" | "correct" | "wrong";
+const TYPE_LABEL: Record<string, string> = {
+  vocabulary: "📚 New word",
+  grammar: "✏️ Grammar",
+  translation: "🌍 Translate",
+  idiom: "💬 Idiom",
+};
+
+type Feedback = { correct: boolean; answer: string } | null;
 
 export default function LearnPage() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const { address, isConnected } = useAccount();
-  const { user, refetch: refetchUser } = useMoningoUser();
-  const claimAndComplete = useClaimAndComplete();
+  const qc = useQueryClient();
+  const send = useMoningoTx();
+  const { user, refetch: refetchOnchain } = useOnchainUser();
+  const { data: lessons } = useQuery({ queryKey: ["lessons"], queryFn: api.lessons });
+  const { data: me, refetch: refetchMe } = useQuery({
+    queryKey: ["user", address],
+    queryFn: () => api.user(address!),
+    enabled: Boolean(address),
+  });
 
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const [currentIdx, setCurrentIdx] = useState(0);
+  // Quiz state: a queue so wrong answers come back at the end (Duolingo style).
+  const [queue, setQueue] = useState<Lesson[] | null>(null);
+  const [firstTry, setFirstTry] = useState<Record<number, boolean>>({});
   const [selected, setSelected] = useState<string | null>(null);
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [scoreMap, setScoreMap] = useState<Record<number, number>>({});
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [signature, setSignature] = useState<`0x${string}` | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [stakeTx, setStakeTx] = useState<TxResult | null>(null);
+  const [claimTx, setClaimTx] = useState<TxResult | null>(null);
 
-  const [doneCount, setDoneCount] = useState(0);
-  const [showComplete, setShowComplete] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const [contractConfigured, setContractConfigured] = useState(true);
+  const total = lessons?.length ?? 3;
+  const doneIds = useMemo(() => new Set(me?.todayProgress.filter((p) => p.score > 0).map((p) => p.lessonId)), [me]);
+  const lessonsDone = Boolean(me?.completedToday);
+  const claimed = Boolean(me?.rewardSignedToday && user && !user.active) || Boolean(claimTx);
+  const current = queue?.[0];
+  const solved = queue ? total - new Set(queue.map((q) => q.id)).size : doneIds.size;
 
-  useEffect(() => {
-    setContractConfigured(Boolean(getContractAddress()));
-  }, []);
-
-  const stakedToday = user?.active ?? false;
-
-  // Fetch lessons on mount
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
+  async function run(label: string, fn: () => Promise<void>) {
+    setBusy(label);
     setError(null);
-    fetchLessons()
-      .then((data) => {
-        if (active) {
-          setLessons(data);
-          if (data.length === 0) setError("No lessons returned from backend.");
-        }
-      })
-      .catch((e) => {
-        if (active) setError(e instanceof Error ? e.message : "Failed to load lessons");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const total = lessons.length;
-  const current = lessons[currentIdx];
-  const progressValue = total > 0 ? (currentIdx / total) * 100 : 0;
-
-  const handleAnswer = useCallback(
-    (option: string) => {
-      if (phase !== "idle" && phase !== "answering") return;
-      setSelected(option);
-      if (!current) return;
-      if (option === current.answer) {
-        setPhase("correct");
-      } else {
-        setPhase("wrong");
-      }
-    },
-    [phase, current]
-  );
-
-  const handleNext = useCallback(async () => {
-    if (!current || !address) {
-      // still advance UI even without wallet
-      setCurrentIdx((i) => Math.min(i + 1, total - 1));
-      setSelected(null);
-      setPhase("idle");
-      return;
-    }
-
-    const isCorrect = phase === "correct";
-    const score = isCorrect ? 100 : 0;
-
-    // Sync progress to backend
     try {
-      setSyncError(null);
-      const res = await syncProgress(address, current.id, score);
-      setScoreMap((m) => ({ ...m, [current.id]: score }));
-      setDoneCount(res.lessonsDoneToday);
-
-      if (res.completedToday) {
-        // All done — trigger completion flow
-        setShowComplete(true);
-        return;
-      }
+      await fn();
     } catch (e) {
-      setSyncError(e instanceof Error ? e.message : "Failed to sync progress");
+      setError(explainError(e));
+    } finally {
+      setBusy(null);
     }
+  }
 
-    // Advance to next question
-    if (currentIdx < total - 1) {
-      setCurrentIdx((i) => i + 1);
+  const stake = () =>
+    run("Staking", async () => {
+      setStakeTx(await send("startStreak", [], DAILY_STAKE_WEI));
+      await refetchOnchain();
+    });
+
+  const startLessons = () => {
+    const todo = (lessons ?? []).filter((l) => !doneIds.has(l.id));
+    setQueue(todo);
+  };
+
+  const check = () => {
+    if (!current || !selected) return;
+    const correct = selected === current.answer;
+    setFeedback({ correct, answer: current.answer });
+    if (!(current.id in firstTry)) setFirstTry((f) => ({ ...f, [current.id]: correct }));
+  };
+
+  const next = () =>
+    run("Saving", async () => {
+      if (!current || !feedback || !address) return;
+      let rest = queue!.slice(1);
+      if (feedback.correct) {
+        const score = firstTry[current.id] === false ? 50 : 100;
+        const res = await api.syncProgress(address, current.id, score);
+        if (res.signature) setSignature(res.signature);
+      } else {
+        rest = [...rest, current]; // try again later
+      }
+      setQueue(rest);
       setSelected(null);
-      setPhase("idle");
-    } else {
-      // Reached last question but not all done today (e.g., some wrong earlier)
-      setShowComplete(true);
-    }
-  }, [current, address, phase, currentIdx, total]);
+      setFeedback(null);
+      if (rest.length === 0) await refetchMe();
+    });
 
-  const handleClaim = useCallback(async () => {
-    await claimAndComplete.run();
-    if (claimAndComplete.completeConfirmed) {
-      refetchUser();
-    }
-  }, [claimAndComplete, refetchUser]);
+  const claim = () =>
+    run("Claiming", async () => {
+      let sig = signature;
+      if (!sig) sig = (await api.claimSignature(address!)).signature;
+      setClaimTx(await send("completeEnglishTask", [sig]));
+      await Promise.all([refetchOnchain(), refetchMe(), qc.invalidateQueries({ queryKey: ["config"] })]);
+    });
 
-  // Refetch user after completion
-  useEffect(() => {
-    if (claimAndComplete.completeConfirmed) {
-      refetchUser();
-    }
-  }, [claimAndComplete.completeConfirmed, refetchUser]);
+  // ---------- render ----------
+  if (!mounted) return null;
 
-  const resetQuiz = useCallback(() => {
-    setCurrentIdx(0);
-    setSelected(null);
-    setPhase("idle");
-    setScoreMap({});
-    setDoneCount(0);
-    setShowComplete(false);
-    setSyncError(null);
-  }, []);
+  if (!isConnected) {
+    return (
+      <Center mood="happy" title="Connect your wallet to start" text="Your wallet is your account. Progress and rewards live on Monad.">
+        <WalletButton />
+      </Center>
+    );
+  }
 
-  const claimBusy =
-    claimAndComplete.fetching ||
-    claimAndComplete.completePending ||
-    claimAndComplete.completeConfirming;
+  if (!lessons || !me) return <Center mood="think" title="Loading today's lessons…" text="" />;
 
-  const claimStatus = useMemo(() => {
-    if (claimAndComplete.completeConfirmed) return "success";
-    if (claimAndComplete.completeError || claimAndComplete.fetchError) return "error";
-    if (claimBusy) return "pending";
-    return "idle";
-  }, [claimAndComplete, claimBusy]);
-
-  return (
-    <div className="container max-w-2xl space-y-6 py-8 animate-fade-in">
-      {/* Header */}
-      <div className="space-y-1">
-        <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight">
-          <Flame className="h-6 w-6 text-flame" />
-          Daily English Quiz
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Answer all {total || "—"} questions correctly to sync your progress and claim your stake back on Monad.
-        </p>
-      </div>
-
-      {/* Staking guard */}
-      {isConnected && !stakedToday && !loading && (
-        <Card className="border-flame/30 bg-flame/5">
-          <CardContent className="flex items-center gap-3 p-4 text-sm">
-            <AlertCircle className="h-5 w-5 shrink-0 text-flame" />
-            <p className="text-muted-foreground">
-              You haven&rsquo;t staked today. You can still practice, but to claim your stake back
-              you must first call <code className="rounded bg-secondary px-1">startStreak()</code> with {DAILY_STAKE_MON} MON
-              from the <a href="/" className="text-monad hover:underline">Dashboard</a>.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {!isConnected && !loading && (
-        <Card className="border-monad/30 bg-monad/5">
-          <CardContent className="flex items-center gap-3 p-4 text-sm">
-            <AlertCircle className="h-5 w-5 shrink-0 text-monad" />
-            <p className="text-muted-foreground">
-              Connect your Monad Testnet wallet to sync your progress and claim rewards.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Progress bar */}
-      {!loading && total > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-muted-foreground">
-              Question {currentIdx + 1} of {total}
-            </span>
-            <span className="font-mono text-muted-foreground">
-              {doneCount}/{total} synced
-            </span>
+  // In-lesson view
+  if (queue && current) {
+    const progress = (solved / total) * 100;
+    return (
+      <div className="mx-auto flex min-h-[70vh] max-w-2xl flex-col">
+        <div className="mb-8 flex items-center gap-4">
+          <button onClick={() => setQueue(null)} aria-label="Quit lesson" className="text-monad-300 hover:text-white">
+            <X className="h-6 w-6" />
+          </button>
+          <div className="h-4 flex-1 overflow-hidden rounded-full bg-monad-900">
+            <div className="h-full rounded-full bg-gradient-to-r from-duo to-[#89e219] transition-all duration-500" style={{ width: `${progress}%` }} />
           </div>
-          <Progress value={progressValue} className="h-2.5" />
+          <span className="flex items-center gap-1 font-black text-duo-red">
+            <Heart className="h-5 w-5 fill-duo-red" />∞
+          </span>
         </div>
-      )}
 
-      {/* Loading */}
-      {loading && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center gap-3 py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-monad" />
-            <p className="text-sm text-muted-foreground">Loading today&rsquo;s lessons…</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Error */}
-      {error && !loading && (
-        <Card className="border-destructive/30">
-          <CardContent className="flex items-center gap-3 p-6 text-destructive">
-            <AlertCircle className="h-5 w-5" />
-            {error}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Quiz card */}
-      {!loading && !error && current && (
-        <Card key={current.id} className={cn("transition-all", phase === "correct" && "border-monad/40", phase === "wrong" && "border-destructive/40")}>
-          <CardContent className="space-y-5 p-6">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {current.type}
-              </span>
-              <span className="text-xs text-muted-foreground">Lesson #{current.id}</span>
-            </div>
-
-            <h2 className="text-xl font-bold leading-snug text-foreground">
-              {current.question}
-            </h2>
-
-            <div className="space-y-2.5">
-              {current.options.map((opt) => {
-                const isSelected = selected === opt;
-                const isAnswer = opt === current.answer;
-                const showCorrect = phase !== "idle" && phase !== "answering" && isAnswer;
-                const showWrong = phase === "wrong" && isSelected && !isAnswer;
-
-                return (
-                  <button
-                    key={opt}
-                    onClick={() => handleAnswer(opt)}
-                    disabled={phase === "correct" || phase === "wrong"}
-                    className={cn(
-                      "flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3.5 text-left text-sm font-medium transition-all",
-                      "border-border bg-secondary/30 hover:border-monad/40 hover:bg-secondary",
-                      "disabled:cursor-default",
-                      showCorrect && "border-monad bg-monad/15 text-monad glow-monad",
-                      showWrong && "border-destructive bg-destructive/10 text-destructive animate-shake",
-                      isSelected && !showCorrect && !showWrong && "border-foreground/40 bg-secondary"
-                    )}
-                  >
-                    <span>{opt}</span>
-                    {showCorrect && <Check className="h-5 w-5 shrink-0" />}
-                    {showWrong && <X className="h-5 w-5 shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Feedback */}
-            {phase === "correct" && (
-              <div className="flex items-center gap-2 rounded-xl bg-monad/10 px-4 py-3 text-sm text-monad animate-pop">
-                <Check className="h-5 w-5" />
-                Correct! Syncing to backend…
-              </div>
-            )}
-            {phase === "wrong" && (
-              <div className="flex items-center gap-2 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive animate-pop">
-                <X className="h-5 w-5" />
-                Not quite. The correct answer is highlighted in green.
-              </div>
-            )}
-
-            {syncError && (
-              <p className="flex items-center gap-2 text-sm text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                Sync failed: {syncError}
-              </p>
-            )}
-
-            {/* Next button */}
-            {phase !== "idle" && phase !== "answering" && (
-              <Button
-                onClick={handleNext}
-                className="w-full gap-2"
-                size="lg"
-                variant={phase === "correct" ? "default" : "outline"}
-              >
-                {currentIdx < total - 1 ? "Next Question" : "Finish"}
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Completion modal */}
-      <Dialog open={showComplete} onOpenChange={setShowComplete}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-monad to-monad-600 shadow-lg shadow-monad/40">
-              <PartyPopper className="h-8 w-8 text-white" />
-            </div>
-            <DialogTitle className="text-center text-2xl">Lessons Complete! 🎉</DialogTitle>
-            <DialogDescription className="text-center">
-              You finished today&rsquo;s {total} English lessons. Now claim your stake back
-              {contractConfigured ? ` plus ${REWARD_MON} MON reward` : ""} on Monad Testnet.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-3">
-            {!contractConfigured && (
-              <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                Contract not configured — claiming is disabled. Set the contract address via env or backend.
-              </div>
-            )}
-
-            {!stakedToday && isConnected && (
-              <div className="flex items-start gap-2 rounded-xl border border-flame/30 bg-flame/10 p-3 text-xs text-flame">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                You have no active stake. Stake {DAILY_STAKE_MON} MON on the Dashboard first, then claim here.
-              </div>
-            )}
-
-            {claimStatus === "error" && (
-              <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                {claimAndComplete.fetchError || claimAndComplete.completeError?.message || "Claim failed. Try again."}
-              </div>
-            )}
-
-            {claimStatus === "success" && claimAndComplete.txHash && (
-              <div className="space-y-2 rounded-xl border border-monad/30 bg-monad/10 p-3 text-sm text-monad">
-                <p className="flex items-center gap-2 font-semibold">
-                  <Trophy className="h-4 w-4" />
-                  Stake claimed successfully!
-                </p>
-                <a
-                  href={`${MONAD_EXPLORER}/tx/${claimAndComplete.txHash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs underline hover:no-underline"
-                >
-                  View on explorer <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            )}
+        <p className="mb-2 text-sm font-extrabold uppercase tracking-wider text-monad-300">{TYPE_LABEL[current.type] ?? current.type}</p>
+        <div className="mb-6 flex items-end gap-3">
+          <Mascot size={90} mood={feedback ? (feedback.correct ? "cheer" : "sad") : "think"} float={false} />
+          <div className="relative flex-1 rounded-2xl border-2 border-monad-700 bg-monad-900/60 p-4 text-lg font-extrabold text-white sm:text-xl">
+            {current.question}
           </div>
+        </div>
 
-          <DialogFooter className="flex-col gap-2 sm:flex-col">
-            <Button
-              variant="flame"
-              size="lg"
-              className="w-full gap-2"
-              onClick={handleClaim}
-              disabled={
-                claimBusy ||
-                !contractConfigured ||
-                !isConnected ||
-                !stakedToday ||
-                claimStatus === "success"
+        <div className="grid gap-3">
+          {current.options.map((o) => (
+            <button
+              key={o}
+              disabled={Boolean(feedback)}
+              onClick={() => setSelected(o)}
+              className="option-tile"
+              data-state={
+                feedback ? (o === feedback.answer ? "correct" : o === selected ? "wrong" : undefined) : o === selected ? "selected" : undefined
               }
             >
-              {claimBusy ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  {claimAndComplete.fetching
-                    ? "Getting signature…"
-                    : claimAndComplete.completePending
-                    ? "Confirm in wallet…"
-                    : "Waiting for confirmation…"}
-                </>
-              ) : claimStatus === "success" ? (
-                <>
-                  <Check className="h-5 w-5" />
-                  Claimed!
-                </>
-              ) : (
-                <>
-                  <Coins className="h-5 w-5" />
-                  Claim {DAILY_STAKE_MON} MON Stake Back on Monad
-                </>
-              )}
-            </Button>
-            <Button variant="ghost" className="w-full gap-2" onClick={resetQuiz}>
-              <RotateCcw className="h-4 w-4" />
-              Restart Quiz
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              {o}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1" />
+        <div
+          className={cn(
+            "sticky bottom-16 mt-8 rounded-2xl p-4 md:bottom-4",
+            feedback ? (feedback.correct ? "bg-duo/15" : "bg-duo-red/15") : "bg-transparent"
+          )}
+        >
+          {feedback && (
+            <p className={cn("mb-3 text-lg font-black", feedback.correct ? "text-duo" : "text-duo-red")}>
+              {feedback.correct ? "Nicely done! 🎉" : `Correct answer: ${feedback.answer}`}
+            </p>
+          )}
+          {feedback ? (
+            <button onClick={next} disabled={Boolean(busy)} className={cn("w-full", feedback.correct ? "btn-green" : "btn-berry")}>
+              {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : "Continue"}
+            </button>
+          ) : (
+            <button onClick={check} disabled={!selected} className="btn-green w-full">
+              Check
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Hub view: stake -> lessons -> claim
+  const active = Boolean(user?.active);
+  return (
+    <div className="mx-auto max-w-xl space-y-6">
+      {claimed ? (
+        <Center mood="cheer" title="Daily quest complete! 🎉" text={`Your ${DAILY_STAKE_MON} MON stake is back with a +${REWARD_MON} MON reward. See you tomorrow to keep the streak alive!`}>
+          {claimTx && <TxBadge tx={claimTx} label="Reward paid" />}
+          <p className="text-3xl font-black text-flame">🔥 {user?.streak ?? 0} day streak</p>
+          <Link href="/exam" className="btn-berry">Try the level test</Link>
+        </Center>
+      ) : !active && !lessonsDone ? (
+        <Center mood="happy" title="Ready for today's lesson?" text={`Stake ${DAILY_STAKE_MON} MON to commit. Finish ${total} lessons within 24h and get it back +${REWARD_MON} MON. Miss it and it feeds the reward pool.`}>
+          <button onClick={stake} disabled={Boolean(busy)} className="btn-monad w-full sm:w-auto">
+            {busy ? <><Loader2 className="h-5 w-5 animate-spin" /> {busy}…</> : `Stake ${DAILY_STAKE_MON} MON`}
+          </button>
+        </Center>
+      ) : !lessonsDone ? (
+        <Center mood="happy" title={`${doneIds.size}/${total} lessons done`} text="Answer every question correctly. Mistakes come back at the end.">
+          {stakeTx && <TxBadge tx={stakeTx} label="Staked" />}
+          <button onClick={startLessons} className="btn-green w-full sm:w-auto">{doneIds.size ? "Continue lessons" : "Start lessons"}</button>
+        </Center>
+      ) : !active ? (
+        <Center mood="think" title="Lessons done. Now stake to claim!" text={`You finished today's lessons. Stake ${DAILY_STAKE_MON} MON, then claim it right back with the reward.`}>
+          <button onClick={stake} disabled={Boolean(busy)} className="btn-monad w-full sm:w-auto">
+            {busy ? <><Loader2 className="h-5 w-5 animate-spin" /> {busy}…</> : `Stake ${DAILY_STAKE_MON} MON`}
+          </button>
+        </Center>
+      ) : (
+        <Center mood="cheer" title="All lessons done!" text={`Claim your ${DAILY_STAKE_MON} MON stake back plus ${REWARD_MON} MON reward.`}>
+          <button onClick={claim} disabled={Boolean(busy)} className="btn-green w-full sm:w-auto">
+            {busy ? <><Loader2 className="h-5 w-5 animate-spin" /> {busy}…</> : `Claim ${(0.1 + Number(REWARD_MON)).toFixed(2)} MON`}
+          </button>
+        </Center>
+      )}
+      {error && <p className="rounded-xl bg-duo-red/15 p-3 text-center font-bold text-duo-red">{error}</p>}
     </div>
+  );
+}
+
+function Center({ mood, title, text, children }: { mood: MascotMood; title: string; text: string; children?: React.ReactNode }) {
+  return (
+    <section className="metal-card mx-auto flex max-w-xl flex-col items-center gap-4 p-8 text-center">
+      <Mascot mood={mood} size={150} />
+      <h1 className="metal-text text-3xl font-black">{title}</h1>
+      {text && <p className="text-balance text-monad-100/80">{text}</p>}
+      {children}
+    </section>
   );
 }

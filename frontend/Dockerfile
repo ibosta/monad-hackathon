@@ -1,41 +1,26 @@
-# Moningo Frontend — Next.js 14 App Router (standalone output)
-# Multi-stage build for a lean production image running on port 3000.
-
-# ---- Builder ----
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
-
-# Install dependencies first for better layer caching
 COPY package.json package-lock.json* ./
-RUN npm install
-
-# Copy source and build
+RUN npm ci
 COPY . .
-RUN npm run build
+# NEXT_PUBLIC_* are inlined into the bundle at build time
+ARG NEXT_PUBLIC_BACKEND_URL=http://localhost:5001
+ARG NEXT_PUBLIC_MONINGO_CONTRACT_ADDRESS=
+ARG NEXT_PUBLIC_MONAD_RPC_URL=https://testnet-rpc.monad.xyz
+ENV NEXT_PUBLIC_BACKEND_URL=$NEXT_PUBLIC_BACKEND_URL \
+    NEXT_PUBLIC_MONINGO_CONTRACT_ADDRESS=$NEXT_PUBLIC_MONINGO_CONTRACT_ADDRESS \
+    NEXT_PUBLIC_MONAD_RPC_URL=$NEXT_PUBLIC_MONAD_RPC_URL \
+    NEXT_TELEMETRY_DISABLED=1
+RUN npm run build && mkdir -p public
 
-# ---- Runner ----
-FROM node:18-alpine AS runner
+FROM node:22-alpine
 WORKDIR /app
-
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
-# Non-root user for security
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-# Copy built artifacts
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
+COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/next.config.mjs ./next.config.mjs
-
-USER nextjs
-
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.js ./
+USER node
 EXPOSE 3000
-
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
-
 CMD ["npm", "start"]

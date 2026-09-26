@@ -6,6 +6,7 @@ import {
   useConnect,
   useDisconnect,
   useChainId,
+  useSwitchChain,
   type Connector,
 } from "wagmi";
 import { useEffect, useState } from "react";
@@ -26,6 +27,7 @@ export function WalletButton() {
   const { connectors, connectAsync, isPending, error: connectError } = useConnect();
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
+  const { switchChain, isPending: switching } = useSwitchChain();
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -69,14 +71,11 @@ export function WalletButton() {
   if (!isConnected) {
     return (
       <>
-        <Button
-          variant="flame"
-          onClick={() => setPickerOpen(true)}
-          className="w-full sm:w-auto"
-        >
+        <button onClick={() => setPickerOpen(true)} className="btn-monad px-4 py-2 text-xs">
           <Wallet className="h-4 w-4" />
-          Connect Wallet
-        </Button>
+          <span className="hidden sm:inline">Connect Wallet</span>
+          <span className="sm:hidden">Connect</span>
+        </button>
         <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
@@ -132,33 +131,29 @@ export function WalletButton() {
 
   if (wrongNetwork) {
     return (
-      <Button
-        variant="destructive"
-        onClick={() => setPickerOpen(true)}
-        className="w-full sm:w-auto"
-      >
-        <AlertTriangle className="h-4 w-4" />
-        Wrong Network
-      </Button>
+      <button onClick={() => switchChain({ chainId: MONAD_CHAIN_ID })} disabled={switching} className="btn-berry px-4 py-2 text-xs">
+        {switching ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+        Switch to Monad
+      </button>
     );
   }
 
   return (
-    <div className="relative w-full sm:w-auto">
+    <div className="relative">
       <button
         onClick={() => setMenuOpen((v) => !v)}
         className={cn(
-          "flex w-full items-center justify-between gap-2 rounded-xl border border-monad/30 bg-monad/10 px-4 py-2.5 text-sm font-medium text-monad transition-colors hover:bg-monad/20",
+          "flex items-center justify-between gap-2 rounded-xl border border-monad/30 bg-monad/10 px-4 py-2.5 text-sm font-medium text-monad transition-colors hover:bg-monad/20",
           "sm:w-auto glow-monad"
         )}
       >
         <span className="flex items-center gap-2">
           <Zap className="h-4 w-4 fill-monad" />
           <span className="font-mono">
-            {formatMon(balanceData?.value ?? 0n, 3)} MON
+            {formatMon(balanceData?.value ?? 0n, 2)} <span className="hidden sm:inline">MON</span>
           </span>
         </span>
-        <span className="flex items-center gap-1.5 border-l border-monad/20 pl-2.5 font-mono text-xs text-foreground/80">
+        <span className="hidden items-center gap-1.5 border-l border-monad/20 pl-2.5 font-mono text-xs text-foreground/80 sm:flex">
           {shortAddress(address)}
           <ChevronDown className="h-3.5 w-3.5 opacity-60" />
         </span>

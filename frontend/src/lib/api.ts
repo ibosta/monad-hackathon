@@ -1,55 +1,42 @@
-/**
- * Backend API client for Moningo.
- *
- * Endpoints (see backend/src/index.js):
- *   GET  /api/config              -> chain config + contract address + abi
- *   GET  /api/english-lessons      -> Lesson[] (direct array)
- *   POST /api/sync-progress        -> { success, lessonsDoneToday, completedToday, signature, claimError }
- *   POST /api/claim-signature      -> { success, signature }
- *   GET  /api/users/:address       -> { totalScore, lessonsCompleted, todayProgress, completedToday, onchain }
- *   GET  /api/leaderboard          -> User[]
- */
+import type { OnchainUser } from "./contract";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
 
-export type Lesson = {
-  id: number;
-  type: "vocabulary" | "grammar" | "translation" | string;
-  question: string;
-  options: string[];
-  answer: string;
-};
+export type Lesson = { id: number; type: string; question: string; options: string[]; answer: string };
+export type ExamQuestion = { id: number; level: number; question: string; options: string[] };
 
 export type AppConfig = {
   chainId: number;
-  chainName: string;
   rpcUrl: string;
   explorerUrl: string;
-  faucetUrl?: string;
+  faucetUrl: string;
   contractAddress: string | null;
   dailyStake: string;
   reward: string;
-  certThreshold: number;
+  examFee: string;
   rewardPool: string | null;
   lessonsPerDay: number;
 };
 
 export type SyncProgressResponse = {
   success: boolean;
-  message?: string;
   lessonsDoneToday: number;
   lessonsPerDay: number;
   completedToday: boolean;
-  signature: string | null;
+  signature: `0x${string}` | null;
   claimError: string | null;
 };
 
-export type OnchainUser = {
-  streak: number;
-  stakedAt: number;
-  active: boolean;
-  certificateId: number;
-} | null;
+export type ExamResult = {
+  success: boolean;
+  correct: number;
+  total: number;
+  level: number;
+  levelName: string;
+  results: { id: number; correct: boolean }[];
+  signature: `0x${string}` | null;
+  claimError: string | null;
+};
 
 export type UserResponse = {
   walletAddress: string;
@@ -57,105 +44,35 @@ export type UserResponse = {
   lessonsCompleted: number;
   todayProgress: { lessonId: number; score: number }[];
   completedToday: boolean;
-  onchain: OnchainUser;
+  rewardSignedToday: boolean;
+  onchain: OnchainUser | null;
 };
+
+export type LeaderboardEntry = { walletAddress: string; totalScore: number; lessonsCompleted: number };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const url = `${BACKEND_URL}${path}`;
-  const res = await fetch(url, {
+  const res = await fetch(`${BACKEND_URL}${path}`, {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers || {}),
-    },
+    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
     cache: "no-store",
   });
-
-  if (!res.ok) {
-    let detail = "";
-    try {
-      const body = await res.json();
-      detail = body?.message || body?.error || JSON.stringify(body);
-    } catch {
-      detail = await res.text().catch(() => "");
-    }
-    throw new Error(`API ${res.status}: ${detail || res.statusText}`);
-  }
-
-  return res.json() as Promise<T>;
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.message || `API ${res.status}`);
+  return body as T;
 }
 
-/** Fetch the backend-provided app/chain config. Returns null if backend is down. */
-export async function fetchConfig(): Promise<AppConfig | null> {
-  try {
-    return await request<AppConfig>("/api/config");
-  } catch (err) {
-    console.warn("[api] /api/config failed:", err);
-    return null;
-  }
-}
+const post = <T,>(path: string, data: unknown) => request<T>(path, { method: "POST", body: JSON.stringify(data) });
 
-/**
- * Fetch today's English lessons.
- * Backend returns a bare array, but we defensively support { lessons: [...] }.
- */
-export async function fetchLessons(): Promise<Lesson[]> {
-  const data = await request<unknown>("/api/english-lessons");
-  if (Array.isArray(data)) return data as Lesson[];
-  if (data && typeof data === "object" && Array.isArray((data as any).lessons)) {
-    return (data as any).lessons as Lesson[];
-  }
-  return [];
-}
-
-export async function syncProgress(
-  walletAddress: string,
-  lessonId: number,
-  score: number
-): Promise<SyncProgressResponse> {
-  return request<SyncProgressResponse>("/api/sync-progress", {
-    method: "POST",
-    body: JSON.stringify({ walletAddress, lessonId, score }),
-  });
-}
-
-export async function fetchClaimSignature(walletAddress: string): Promise<{
-  success: boolean;
-  signature?: string | null;
-  message?: string;
-}> {
-  return request<{ success: boolean; signature?: string | null; message?: string }>(
-    "/api/claim-signature",
-    {
-      method: "POST",
-      body: JSON.stringify({ walletAddress }),
-    }
-  );
-}
-
-export async function fetchUser(address: string): Promise<UserResponse | null> {
-  try {
-    return await request<UserResponse>(`/api/users/${address}`);
-  } catch (err) {
-    console.warn("[api] /api/users failed:", err);
-    return null;
-  }
-}
-
-export type LeaderboardEntry = {
-  walletAddress: string;
-  totalScore: number;
-  lessonsCompleted: number;
+export const api = {
+  config: () => request<AppConfig>("/api/config"),
+  lessons: () => request<Lesson[]>("/api/english-lessons"),
+  syncProgress: (walletAddress: string, lessonId: number, score: number) =>
+    post<SyncProgressResponse>("/api/sync-progress", { walletAddress, lessonId, score }),
+  claimSignature: (walletAddress: string) =>
+    post<{ success: boolean; signature: `0x${string}` }>("/api/claim-signature", { walletAddress }),
+  levelTest: () => request<{ fee: string; questions: ExamQuestion[] }>("/api/level-test"),
+  submitLevelTest: (walletAddress: string, answers: Record<number, string>) =>
+    post<ExamResult>("/api/level-test/submit", { walletAddress, answers }),
+  user: (address: string) => request<UserResponse>(`/api/users/${address}`),
+  leaderboard: () => request<LeaderboardEntry[]>("/api/leaderboard"),
 };
-
-export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
-  try {
-    const data = await request<unknown>("/api/leaderboard");
-    return Array.isArray(data) ? (data as LeaderboardEntry[]) : [];
-  } catch (err) {
-    console.warn("[api] /api/leaderboard failed:", err);
-    return [];
-  }
-}
-
-export { BACKEND_URL };

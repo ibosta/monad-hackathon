@@ -1,198 +1,119 @@
 "use client";
 
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { useState, useCallback } from "react";
-import { parseEther } from "viem";
-import { moningoAbi, getContractAddress, DAILY_STAKE_MON, type MoningoUser } from "@/lib/contract";
-import { fetchClaimSignature } from "@/lib/api";
+import { useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useAccount, useBalance, useChainId, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from "wagmi";
+import { BaseError, ContractFunctionRevertedError } from "viem";
+import { api } from "@/lib/api";
+import { GAS, envContractAddress, moningoAbi, type OnchainUser } from "@/lib/contract";
+import { MONAD_CHAIN_ID } from "@/lib/wagmi";
 
-/** Read on-chain user state: (streak, stakedAt, active, certificateId) */
-export function useMoningoUser() {
+type WriteFn = keyof typeof GAS;
+
+export type TxResult = { hash: `0x${string}`; ms: number };
+
+export function useAppConfig() {
+  return useQuery({ queryKey: ["config"], queryFn: api.config, staleTime: 15_000 });
+}
+
+export function useContractAddress(): `0x${string}` | undefined {
+  const { data } = useAppConfig();
+  return envContractAddress() ?? ((data?.contractAddress as `0x${string}` | null) || undefined);
+}
+
+/** On-chain Moningo state for the connected wallet. */
+export function useOnchainUser() {
   const { address } = useAccount();
-  const contract = getContractAddress();
-
-  const result = useReadContract({
-    address: contract ?? undefined,
+  const contract = useContractAddress();
+  const q = useReadContract({
+    address: contract,
     abi: moningoAbi,
     functionName: "getUser",
     args: address ? [address] : undefined,
-    query: { enabled: Boolean(contract && address) },
+    chainId: MONAD_CHAIN_ID,
+    query: { enabled: Boolean(contract && address), refetchInterval: 4_000 },
   });
-
-  const data = result.data as readonly [bigint, bigint, boolean, bigint] | undefined;
-
-  const user: MoningoUser | null = data
+  const d = q.data;
+  const user: OnchainUser | null = d
     ? {
-        streak: Number(data[0]),
-        stakedAt: Number(data[1]),
-        active: Boolean(data[2]),
-        certificateId: Number(data[3]),
+        streak: Number(d[0]),
+        stakedAt: Number(d[1]),
+        active: d[2],
+        certificateId: Number(d[3]),
+        level: Number(d[4]),
+        examPaid: d[5],
       }
     : null;
-
-  return { ...result, user };
+  return { ...q, user };
 }
 
-/** Read the contract reward pool (in wei). */
-export function useRewardPool() {
-  const contract = getContractAddress();
-  return useReadContract({
-    address: contract ?? undefined,
-    abi: moningoAbi,
-    functionName: "rewardPool",
-    query: { enabled: Boolean(contract) },
-  });
+export function useMonBalance() {
+  const { address } = useAccount();
+  return useBalance({ address, chainId: MONAD_CHAIN_ID, query: { enabled: Boolean(address), refetchInterval: 4_000 } });
 }
 
-/**
- * Start a streak: sends exactly 0.1 MON to startStreak().
- * Returns mutation state helpers.
- */
-export function useStartStreak() {
-  const { writeContractAsync, isPending, isError, error, reset } = useWriteContract();
-  const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
+/** Sends a Moningo transaction with a fixed Monad-tuned gas limit and waits for the receipt. */
+export function useMoningoTx() {
+  const contract = useContractAddress();
+  const chainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
+  const { writeContractAsync } = useWriteContract();
+  const client = usePublicClient({ chainId: MONAD_CHAIN_ID });
 
-  const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({ hash: txHash ?? undefined });
+  return useCallback(
+    async (functionName: WriteFn, args: readonly unknown[] = [], value?: bigint): Promise<TxResult> => {
+      if (!contract) throw new Error("Contract not deployed yet (backend has no address).");
+      if (!client) throw new Error("No Monad RPC client");
+      if (chainId !== MONAD_CHAIN_ID) await switchChainAsync({ chainId: MONAD_CHAIN_ID });
 
-  const startStreak = useCallback(async () => {
-    const contract = getContractAddress();
-    if (!contract) throw new Error("Contract address not configured. Set NEXT_PUBLIC_MONINGO_CONTRACT_ADDRESS or start the backend.");
-    const hash = await writeContractAsync({
-      address: contract,
-      abi: moningoAbi,
-      functionName: "startStreak",
-      value: parseEther(DAILY_STAKE_MON),
-    });
-    setTxHash(hash);
-    return hash;
-  }, [writeContractAsync]);
-
-  return {
-    startStreak,
-    isPending,
-    isConfirming,
-    isConfirmed,
-    isError,
-    error,
-    txHash,
-    reset,
-  };
-}
-
-/**
- * Complete the English task: requires a verifier signature from the backend.
- * Flow: POST /api/sync-progress (or /api/claim-signature) -> signature -> completeEnglishTask(signature)
- */
-export function useCompleteTask() {
-  const { writeContractAsync, isPending, isError, error, reset } = useWriteContract();
-  const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
-
-  const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({ hash: txHash ?? undefined });
-
-  const completeTask = useCallback(
-    async (signature: `0x${string}`) => {
-      const contract = getContractAddress();
-      if (!contract) throw new Error("Contract address not configured.");
+      const t0 = performance.now();
       const hash = await writeContractAsync({
         address: contract,
         abi: moningoAbi,
-        functionName: "completeEnglishTask",
-        args: [signature],
-      });
-      setTxHash(hash);
-      return hash;
-    },
-    [writeContractAsync]
-  );
-
-  return {
-    completeTask,
-    isPending,
-    isConfirming,
-    isConfirmed,
-    isError,
-    error,
-    txHash,
-    reset,
-  };
-}
-
-/**
- * Claim the soulbound NFT certificate (after CERT_THRESHOLD=3 completions).
- */
-export function useClaimCertificate() {
-  const { writeContractAsync, isPending } = useWriteContract();
-  const [txHash, setTxHash] = useState<`0x${string}` | null>(null);
-
-  const { isLoading: isConfirming, isSuccess: isConfirmed } =
-    useWaitForTransactionReceipt({ hash: txHash ?? undefined });
-
-  const claimCertificate = useCallback(async () => {
-    const contract = getContractAddress();
-    if (!contract) throw new Error("Contract address not configured.");
-    const hash = await writeContractAsync({
-      address: contract,
-      abi: moningoAbi,
-      functionName: "claimCertificate",
-    });
-    setTxHash(hash);
-    return hash;
-  }, [writeContractAsync]);
-
-  return { claimCertificate, isPending, isConfirming, isConfirmed, txHash };
-}
-
-/**
- * High-level helper: fetch a claim signature from the backend, then call completeEnglishTask.
- * Used by the quiz completion modal.
- */
-export function useClaimAndComplete() {
-  const { address } = useAccount();
-  const completeTask = useCompleteTask();
-  const [signature, setSignature] = useState<`0x${string}` | null>(null);
-  const [fetching, setFetching] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
-  const claimSignature = useCallback(async (): Promise<`0x${string}` | null> => {
-    if (!address) {
-      setFetchError("Connect your wallet first.");
-      return null;
-    }
-    setFetching(true);
-    setFetchError(null);
-    try {
-      const res = await fetchClaimSignature(address);
-      if (!res.success || !res.signature) {
-        setFetchError(res.message || "Could not get claim signature from backend.");
-        return null;
+        functionName,
+        args,
+        value,
+        gas: GAS[functionName],
+        chainId: MONAD_CHAIN_ID,
+      } as Parameters<typeof writeContractAsync>[0]);
+      const receipt = await client.waitForTransactionReceipt({ hash, pollingInterval: 250 });
+      const ms = Math.round(performance.now() - t0);
+      if (receipt.status !== "success") {
+        // Re-simulate to surface the custom error name (WrongStake, BadSignature, …).
+        try {
+          await client.simulateContract({ address: contract, abi: moningoAbi, functionName, args, value, account: receipt.from } as never);
+        } catch (e) {
+          throw new Error(explainError(e));
+        }
+        throw new Error("Transaction reverted. Wait a few seconds and retry.");
       }
-      setSignature(res.signature as `0x${string}`);
-      return res.signature as `0x${string}`;
-    } catch (e) {
-      setFetchError(e instanceof Error ? e.message : "Failed to fetch signature.");
-      return null;
-    } finally {
-      setFetching(false);
+      return { hash, ms };
+    },
+    [contract, client, chainId, switchChainAsync, writeContractAsync]
+  );
+}
+
+const FRIENDLY: Record<string, string> = {
+  WrongStake: "Stake must be exactly 0.1 MON.",
+  StreakActive: "You already staked today. Finish your lessons!",
+  NoActiveStreak: "Stake 0.1 MON first to start today's streak.",
+  StreakExpired: "Your 24h window expired. Start a new streak.",
+  BadSignature: "Lesson proof rejected. Re-sync your lessons.",
+  WrongFee: "Exam fee must be exactly 0.05 MON.",
+  NoPaidExam: "Pay the exam fee first.",
+  BadLevel: "Invalid level.",
+};
+
+export function explainError(e: unknown): string {
+  if (e instanceof BaseError) {
+    const revert = e.walk((err) => err instanceof ContractFunctionRevertedError);
+    if (revert instanceof ContractFunctionRevertedError) {
+      const name = revert.data?.errorName ?? "";
+      return FRIENDLY[name] ?? name ?? revert.shortMessage;
     }
-  }, [address]);
-
-  const run = useCallback(async () => {
-    const sig = await claimSignature();
-    if (!sig) return;
-    await completeTask.completeTask(sig);
-  }, [claimSignature, completeTask]);
-
-  return {
-    run,
-    signature,
-    fetching,
-    fetchError,
-    completePending: completeTask.isPending,
-    completeConfirming: completeTask.isConfirming,
-    completeConfirmed: completeTask.isConfirmed,
-    completeError: completeTask.error,
-    txHash: completeTask.txHash,
-  };
+    if (/rejected|denied/i.test(e.message)) return "Transaction rejected in wallet.";
+    if (/insufficient/i.test(e.message)) return "Not enough MON. Get some from the faucet.";
+    return e.shortMessage;
+  }
+  return e instanceof Error ? e.message : "Something went wrong";
 }

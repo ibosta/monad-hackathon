@@ -1,337 +1,171 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
-import {
-  Flame,
-  Zap,
-  Coins,
-  GraduationCap,
-  ArrowRight,
-  Loader2,
-  AlertCircle,
-  CheckCircle2,
-  Trophy,
-  Clock,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { StatCard } from "@/components/stat-card";
-import { useMoningoUser, useRewardPool, useStartStreak } from "@/hooks/use-moningo";
-import { fetchLessons, fetchUser, type Lesson, type UserResponse } from "@/lib/api";
-import { DAILY_STAKE_MON, REWARD_MON, CERT_THRESHOLD, getContractAddress } from "@/lib/contract";
-import { formatMon, getErrorMessage } from "@/lib/utils";
+import { Flame, Coins, Award, Landmark, Check, Lock, Trophy, Droplets } from "lucide-react";
+import { Mascot } from "@/components/mascot";
+import { Certificate } from "@/components/certificate";
+import { WalletButton } from "@/components/wallet-button";
+import { api } from "@/lib/api";
+import { useAppConfig, useMonBalance, useOnchainUser } from "@/hooks/use-moningo";
+import { DAILY_STAKE_MON, EXAM_FEE_MON, LEVEL_NAMES, REWARD_MON } from "@/lib/contract";
+import { cn, formatMon, shortAddress } from "@/lib/utils";
 
-const lessonTypeMeta: Record<string, { label: string; emoji: string }> = {
-  vocabulary: { label: "Vocabulary", emoji: "📚" },
-  grammar: { label: "Grammar", emoji: "✏️" },
-  translation: { label: "Translation", emoji: "🌍" },
-};
-
-export default function DashboardPage() {
+export default function HomePage() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const { address, isConnected } = useAccount();
-  const { user, isLoading: userLoading, refetch: refetchUser } = useMoningoUser();
-  const { data: poolWei } = useRewardPool();
-  const startStreak = useStartStreak();
+  const { data: config } = useAppConfig();
+  const { user } = useOnchainUser();
+  const { data: balance } = useMonBalance();
+  const { data: me } = useQuery({
+    queryKey: ["user", address],
+    queryFn: () => api.user(address!),
+    enabled: Boolean(address),
+    refetchInterval: 5_000,
+  });
+  const { data: board } = useQuery({ queryKey: ["leaderboard"], queryFn: api.leaderboard, refetchInterval: 10_000 });
 
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [lessonsLoading, setLessonsLoading] = useState(true);
-  const [lessonsError, setLessonsError] = useState<string | null>(null);
-  const [backendUser, setBackendUser] = useState<UserResponse | null>(null);
-  const [contractConfigured, setContractConfigured] = useState(true);
-
-  useEffect(() => {
-    setContractConfigured(Boolean(getContractAddress()));
-  }, []);
-
-  // Fetch today's lessons
-  useEffect(() => {
-    let active = true;
-    setLessonsLoading(true);
-    setLessonsError(null);
-    fetchLessons()
-      .then((data) => {
-        if (active) setLessons(data);
-      })
-      .catch((e) => {
-        if (active) setLessonsError(e instanceof Error ? e.message : "Failed to load lessons");
-      })
-      .finally(() => {
-        if (active) setLessonsLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // Fetch backend user progress
-  useEffect(() => {
-    if (!address) {
-      setBackendUser(null);
-      return;
-    }
-    let active = true;
-    fetchUser(address).then((data) => {
-      if (active) setBackendUser(data);
-    });
-    return () => {
-      active = false;
-    };
-  }, [address]);
-
-  const streak = user?.streak ?? backendUser?.onchain?.streak ?? 0;
-  const stakedToday = user?.active ?? false;
-  const completedToday = backendUser?.completedToday ?? false;
-
-  const poolMon = useMemo(() => {
-    if (!poolWei) return "0";
-    return formatMon(poolWei as bigint, 2);
-  }, [poolWei]);
-
-  const handleStartStreak = async () => {
-    try {
-      await startStreak.startStreak();
-    } catch (e) {
-      console.error("startStreak failed:", e);
-    }
-  };
-
-  // Refetch user state after tx confirmed
-  useEffect(() => {
-    if (startStreak.isConfirmed) {
-      refetchUser();
-    }
-  }, [startStreak.isConfirmed, refetchUser]);
-
-  const isBusy =
-    startStreak.isPending || startStreak.isConfirming;
+  const connected = mounted && isConnected;
+  const doneToday = me?.todayProgress.filter((p) => p.score > 0).length ?? 0;
+  const lessonsPerDay = config?.lessonsPerDay ?? 3;
+  const claimedToday = Boolean(me?.completedToday && user && !user.active);
 
   return (
-    <div className="container max-w-6xl space-y-8 py-8 animate-fade-in">
+    <div className="space-y-6">
       {/* Hero */}
-      <section className="space-y-2">
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-          Learn English. <span className="text-monad">Stake MON.</span>{" "}
-          <span className="text-flame">Keep your streak.</span>
-        </h1>
-        <p className="max-w-2xl text-muted-foreground">
-          Moningo is a minimalist Web3 English learning platform on Monad Testnet.
-          Stake <strong className="text-foreground">0.1 MON</strong>, finish today&rsquo;s
-          3 lessons, and claim your stake back plus a <strong className="text-foreground">0.01 MON</strong> reward.
-          Complete {CERT_THRESHOLD} tasks to mint a soulbound certificate NFT.
-        </p>
-      </section>
-
-      {/* Contract not configured warning */}
-      {!contractConfigured && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
-          <div>
-            <p className="font-semibold">Contract not configured</p>
-            <p className="text-amber-200/80">
-              Set <code className="rounded bg-amber-500/20 px-1">NEXT_PUBLIC_MONINGO_CONTRACT_ADDRESS</code>{" "}
-              or run the backend so <code className="rounded bg-amber-500/20 px-1">/api/config</code> can provide it.
+      <section className="metal-card overflow-hidden p-6 sm:p-10">
+        <div className="flex flex-col items-center gap-6 text-center md:flex-row md:text-left">
+          <Mascot mood={claimedToday ? "cheer" : "happy"} size={170} />
+          <div className="flex-1 space-y-3">
+            <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-monad-300">Hi, I&apos;m Mona 👋</p>
+            <h1 className="metal-text text-4xl font-black leading-tight sm:text-5xl">Learn English.<br />Earn MON.</h1>
+            <p className="text-balance text-monad-100/80">
+              Stake <b>{DAILY_STAKE_MON} MON</b>, finish 3 bite-sized lessons and get it back <b>+{REWARD_MON} MON</b>.
+              Prove your level to mint an on-chain CEFR certificate NFT. Settled on Monad in under a second.
             </p>
+            <div className="flex flex-wrap justify-center gap-3 pt-2 md:justify-start">
+              {connected ? (
+                <>
+                  <Link href="/learn" className="btn-green">{claimedToday ? "Practice again tomorrow" : "Start daily lesson"}</Link>
+                  <Link href="/exam" className="btn-ghost-3d">Level test</Link>
+                </>
+              ) : (
+                <WalletButton />
+              )}
+            </div>
           </div>
         </div>
-      )}
-
-      {/* Stat cards */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          icon={Zap}
-          label="Monad Block Time"
-          value="0.4s"
-          hint="High-throughput L1 · 10k TPS"
-          accent="monad"
-        />
-        <StatCard
-          icon={Flame}
-          label="Current Streak"
-          value={streak}
-          hint={stakedToday ? "Active today" : "No active stake"}
-          accent="flame"
-        />
-        <StatCard
-          icon={Coins}
-          label="Reward Pool"
-          value={`${poolMon} MON`}
-          hint="Funded by community & owner"
-          accent="amber"
-        />
       </section>
 
-      {/* Action panel */}
-      <section>
-        <Card className="overflow-hidden border-monad/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-monad" />
-              Today&rsquo;s English Lesson
-            </CardTitle>
-            <CardDescription>
-              Stake {DAILY_STAKE_MON} MON to unlock today&rsquo;s quiz. Complete all 3
-              lessons to claim your stake back + {REWARD_MON} MON reward.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {!isConnected ? (
-              <div className="rounded-xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
-                Connect your Monad Testnet wallet to start staking and learning.
-              </div>
-            ) : stakedToday ? (
-              <div className="flex items-center gap-3 rounded-xl border border-monad/30 bg-monad/10 p-4 text-sm">
-                <CheckCircle2 className="h-5 w-5 text-monad" />
-                <div className="flex-1">
-                  <p className="font-semibold text-foreground">Stake active — you&rsquo;re learning today!</p>
-                  <p className="text-muted-foreground">
-                    {completedToday
-                      ? "All lessons done. Go to Learn to claim your stake back."
-                      : "Head to the Learn page to complete your daily lessons."}
-                  </p>
-                </div>
-                <Link href="/learn">
-                  <Button variant="default" className="gap-2">
-                    {completedToday ? "Claim Stake" : "Start Lessons"}
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <Button
-                  variant="flame"
-                  size="lg"
-                  onClick={handleStartStreak}
-                  disabled={isBusy || !contractConfigured}
-                  className="w-full sm:w-auto"
-                >
-                  {isBusy ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      {startStreak.isPending ? "Confirm in wallet…" : "Waiting for confirmation…"}
-                    </>
-                  ) : (
-                    <>
-                      <Flame className="h-5 w-5 fill-white" />
-                      Stake {DAILY_STAKE_MON} MON & Start Today&rsquo;s English Lesson
-                    </>
-                  )}
-                </Button>
-                {startStreak.isError && (
-                  <p className="flex items-center gap-2 text-sm text-destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    {getErrorMessage(startStreak.error)}
-                  </p>
-                )}
-                {startStreak.isConfirmed && (
-                  <p className="flex items-center gap-2 text-sm text-monad">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Streak started! Loading your lessons…
-                  </p>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  This calls <code className="rounded bg-secondary px-1">startStreak()</code> on the
-                  Moningo contract, sending exactly {DAILY_STAKE_MON} MON. You&rsquo;ll get it back
-                  after completing today&rsquo;s lessons.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Stats */}
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat icon={<Flame className="h-5 w-5 fill-flame text-flame" />} label="Day streak" value={user?.streak ?? 0} tone="text-flame" />
+        <Stat icon={<Coins className="h-5 w-5 text-yellow-300" />} label="Your MON" value={connected ? formatMon(balance?.value ?? 0n, 3) : "—"} tone="text-yellow-200" />
+        <Stat icon={<Award className="h-5 w-5 text-monad" />} label="Level" value={user?.level ? LEVEL_NAMES[user.level] : "—"} tone="text-monad-200" />
+        <Stat icon={<Landmark className="h-5 w-5 text-berry-400" />} label="Reward pool" value={config?.rewardPool ? `${Number(config.rewardPool).toFixed(2)}` : "—"} tone="text-pink-200" />
       </section>
 
-      {/* Lessons list */}
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="flex items-center gap-2 text-xl font-bold">
-            <GraduationCap className="h-5 w-5 text-monad" />
-            Today&rsquo;s Lessons
-          </h2>
-          <span className="text-sm text-muted-foreground">
-            {lessons.length} lessons · rotates daily
-          </span>
-        </div>
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Daily quest */}
+        <section className="metal-card space-y-4 p-6">
+          <h2 className="text-xl font-black text-white">Daily quest</h2>
+          <Step done={Boolean(user?.active) || claimedToday} title={`Stake ${DAILY_STAKE_MON} MON`} hint="Your commitment for today" />
+          <Step done={doneToday >= lessonsPerDay} title={`Finish ${lessonsPerDay} lessons`} hint={`${Math.min(doneToday, lessonsPerDay)}/${lessonsPerDay} done`} />
+          <Step done={claimedToday} title={`Claim ${(0.1 + Number(REWARD_MON)).toFixed(2)} MON`} hint="Stake back + reward" />
+          <Link href="/learn" className="btn-monad w-full">{claimedToday ? "Done for today 🎉" : "Continue"}</Link>
+        </section>
 
-        {lessonsLoading ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {[0, 1, 2].map((i) => (
-              <Card key={i} className="animate-pulse">
-                <CardContent className="space-y-3 p-5">
-                  <div className="h-4 w-20 rounded bg-secondary" />
-                  <div className="h-6 w-full rounded bg-secondary" />
-                  <div className="h-4 w-24 rounded bg-secondary" />
-                </CardContent>
-              </Card>
+        {/* Certificate */}
+        <section className="metal-card space-y-4 p-6">
+          <h2 className="text-xl font-black text-white">Your certificate</h2>
+          {user?.certificateId ? (
+            <Certificate tokenId={user.certificateId} />
+          ) : (
+            <div className="flex flex-col items-center gap-3 py-4 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-monad-900/70">
+                <Lock className="h-7 w-7 text-monad-300" />
+              </div>
+              <p className="text-monad-100/80">
+                Take the 10-question level test for <b>{EXAM_FEE_MON} MON</b> and mint a soulbound NFT with your CEFR level (A1–C1).
+              </p>
+            </div>
+          )}
+          <Link href="/exam" className="btn-berry w-full">{user?.certificateId ? "Retake level test" : "Take level test"}</Link>
+        </section>
+      </div>
+
+      {/* Leaderboard */}
+      <section className="metal-card p-6">
+        <h2 className="mb-4 flex items-center gap-2 text-xl font-black text-white">
+          <Trophy className="h-5 w-5 text-yellow-300" /> Leaderboard
+        </h2>
+        {board?.length ? (
+          <ol className="space-y-2">
+            {board.slice(0, 8).map((u, i) => (
+              <li
+                key={u.walletAddress}
+                className={cn(
+                  "flex items-center justify-between rounded-xl px-4 py-2.5",
+                  u.walletAddress.toLowerCase() === address?.toLowerCase() ? "bg-monad/25" : "bg-monad-900/40"
+                )}
+              >
+                <span className="flex items-center gap-3 font-bold">
+                  <span className="w-6 text-center text-monad-300">{["🥇", "🥈", "🥉"][i] ?? i + 1}</span>
+                  <span className="font-mono text-sm">{shortAddress(u.walletAddress)}</span>
+                </span>
+                <span className="font-black text-monad-100">{u.totalScore} XP</span>
+              </li>
             ))}
-          </div>
-        ) : lessonsError ? (
-          <Card className="border-destructive/30">
-            <CardContent className="flex items-center gap-3 p-5 text-sm text-destructive">
-              <AlertCircle className="h-5 w-5" />
-              {lessonsError}
-            </CardContent>
-          </Card>
-        ) : lessons.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center text-muted-foreground">
-              No lessons available. Make sure the backend is running.
-            </CardContent>
-          </Card>
+          </ol>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {lessons.map((lesson) => {
-              const meta = lessonTypeMeta[lesson.type] ?? { label: lesson.type, emoji: "📝" };
-              return (
-                <Card key={lesson.id} className="group transition-all hover:border-monad/40 hover:glow-monad">
-                  <CardContent className="space-y-3 p-5">
-                    <div className="flex items-center justify-between">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                        {meta.emoji} {meta.label}
-                      </span>
-                      <span className="text-xs text-muted-foreground">#{lesson.id}</span>
-                    </div>
-                    <p className="line-clamp-2 font-medium text-foreground">{lesson.question}</p>
-                    <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground">
-                      <Clock className="h-3.5 w-3.5" />
-                      {lesson.options.length} options
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          <p className="text-monad-300">No learners yet. Be the first!</p>
         )}
       </section>
 
-      {/* Certificate nudge */}
-      {streak > 0 && (
-        <section>
-          <Card className="border-violet-500/30 bg-gradient-to-br from-violet-500/10 to-transparent">
-            <CardContent className="flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-violet-500/20">
-                  <Trophy className="h-6 w-6 text-violet-400" />
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground">Certificate progress</p>
-                  <p className="text-sm text-muted-foreground">
-                    Complete {CERT_THRESHOLD} daily tasks to mint your soulbound NFT certificate.
-                    Current streak: <strong className="text-foreground">{streak}</strong>/{CERT_THRESHOLD}
-                  </p>
-                </div>
-              </div>
-              <Link href="/learn">
-                <Button variant="outline" className="gap-2">
-                  Continue Learning
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </section>
+      {connected && balance && balance.value < 150_000_000_000_000_000n && (
+        <a
+          href={config?.faucetUrl ?? "https://faucet.monad.xyz"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 rounded-2xl border border-monad/40 bg-monad/10 p-4 font-bold text-monad-100"
+        >
+          <Droplets className="h-5 w-5 text-monad" /> Low on MON? Grab testnet MON from the faucet ↗
+        </a>
       )}
+    </div>
+  );
+}
+
+function Stat({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: React.ReactNode; tone: string }) {
+  return (
+    <div className="metal-card p-4">
+      <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wide text-monad-300">
+        {icon}
+        {label}
+      </div>
+      <div className={cn("mt-1 text-2xl font-black sm:text-3xl", tone)}>{value}</div>
+    </div>
+  );
+}
+
+function Step({ done, title, hint }: { done: boolean; title: string; hint: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        className={cn(
+          "flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2",
+          done ? "border-duo bg-duo text-white" : "border-monad-700 bg-monad-900/50 text-monad-400"
+        )}
+      >
+        {done ? <Check className="h-5 w-5" strokeWidth={4} /> : <span className="h-2.5 w-2.5 rounded-full bg-monad-500" />}
+      </div>
+      <div>
+        <p className="font-extrabold text-white">{title}</p>
+        <p className="text-sm text-monad-300">{hint}</p>
+      </div>
     </div>
   );
 }

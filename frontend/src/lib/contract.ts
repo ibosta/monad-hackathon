@@ -1,111 +1,35 @@
-/**
- * Moningo smart contract integration.
- *
- * Mirrors contracts/contracts/Moningo.sol:
- *   - startStreak() payable 0.1 MON (DAILY_STAKE)
- *   - completeEnglishTask(bytes signature) -> returns stake (0.1) + reward (0.01 if pool funded)
- *   - getUser(address) -> (streak, stakedAt, active, certificateId)
- *   - rewardPool() -> uint256
- *   - claimCertificate() -> soulbound NFT after CERT_THRESHOLD (3) tasks
- *
- * Contract address is sourced from:
- *   1. NEXT_PUBLIC_MONINGO_CONTRACT_ADDRESS env (explicit frontend override)
- *   2. NEXT_PUBLIC_BACKEND_URL/api/config -> contractAddress (shared with backend deployment)
- */
-export const DAILY_STAKE_MON = "0.1";
-export const DAILY_STAKE_WEI = 100000000000000000n; // 0.1 ether
-export const REWARD_MON = "0.01";
-export const CERT_THRESHOLD = 3;
+export { moningoAbi } from "./moningo-abi";
 
-export function getContractAddress(): `0x${string}` | null {
-  const fromEnv = process.env.NEXT_PUBLIC_MONINGO_CONTRACT_ADDRESS;
-  if (fromEnv && /^0x[a-fA-F0-9]{40}$/.test(fromEnv)) {
-    return fromEnv as `0x${string}`;
-  }
-  return null;
+export const DAILY_STAKE_MON = "0.1";
+export const REWARD_MON = "0.05";
+export const EXAM_FEE_MON = "0.05";
+export const DAILY_STAKE_WEI = 100_000_000_000_000_000n;
+export const EXAM_FEE_WEI = 50_000_000_000_000_000n;
+
+export const LEVEL_NAMES = ["", "A1", "A2", "B1", "B2", "C1"] as const;
+
+/**
+ * Monad charges the full gas LIMIT, not gas used, and eth_estimateGas over-estimates
+ * completeEnglishTask (~1.1M vs ~110k needed). Limits below were measured on Monad Testnet.
+ */
+export const GAS = {
+  startStreak: 90_000n,
+  completeEnglishTask: 130_000n,
+  startLevelTest: 60_000n,
+  claimCertificate: 260_000n,
+} as const;
+
+/** Build-time override; otherwise the address comes from the backend's /api/config. */
+export function envContractAddress(): `0x${string}` | null {
+  const v = process.env.NEXT_PUBLIC_MONINGO_CONTRACT_ADDRESS;
+  return v && /^0x[a-fA-F0-9]{40}$/.test(v) ? (v as `0x${string}`) : null;
 }
 
-/** Minimal ABI: only the functions the frontend actually calls. */
-export const moningoAbi = [
-  {
-    type: "function",
-    name: "startStreak",
-    stateMutability: "payable",
-    inputs: [],
-    outputs: [],
-  },
-  {
-    type: "function",
-    name: "completeEnglishTask",
-    stateMutability: "nonpayable",
-    inputs: [{ name: "signature", type: "bytes" }],
-    outputs: [],
-  },
-  {
-    type: "function",
-    name: "getUser",
-    stateMutability: "view",
-    inputs: [{ name: "user", type: "address" }],
-    outputs: [
-      { name: "streak", type: "uint256" },
-      { name: "stakedAt", type: "uint256" },
-      { name: "active", type: "bool" },
-      { name: "certificateId", type: "uint256" },
-    ],
-  },
-  {
-    type: "function",
-    name: "rewardPool",
-    stateMutability: "view",
-    inputs: [],
-    outputs: [{ name: "", type: "uint256" }],
-  },
-  {
-    type: "function",
-    name: "claimCertificate",
-    stateMutability: "nonpayable",
-    inputs: [],
-    outputs: [{ name: "tokenId", type: "uint256" }],
-  },
-  {
-    type: "function",
-    name: "taskDigest",
-    stateMutability: "view",
-    inputs: [{ name: "user", type: "address" }],
-    outputs: [{ name: "", type: "bytes32" }],
-  },
-  {
-    type: "event",
-    name: "StreakStarted",
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: "user", type: "address" },
-      { indexed: false, name: "timestamp", type: "uint256" },
-    ],
-  },
-  {
-    type: "event",
-    name: "TaskCompleted",
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: "user", type: "address" },
-      { indexed: false, name: "newStreak", type: "uint256" },
-    ],
-  },
-  {
-    type: "event",
-    name: "RewardPaid",
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: "user", type: "address" },
-      { indexed: false, name: "amount", type: "uint256" },
-    ],
-  },
-] as const;
-
-export type MoningoUser = {
+export type OnchainUser = {
   streak: number;
   stakedAt: number;
   active: boolean;
   certificateId: number;
+  level: number;
+  examPaid: boolean;
 };
