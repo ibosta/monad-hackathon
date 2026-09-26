@@ -1,0 +1,20 @@
+{
+  "name": "moningo-backend",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "start": "prisma db push --skip-generate && node src/index.js",
+    "dev": "prisma db push && node --watch src/index.js",
+    "test": "node --test test/"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "cors": "^2.8.6",
+    "express": "^4.22.3",
+    "viem": "^2.56.9"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.3"
+  }
+}

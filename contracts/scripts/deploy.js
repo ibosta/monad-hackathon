@@ -27,7 +27,7 @@ async function main() {
     deployedAt: new Date().toISOString(),
     abi,
   };
-  const target = path.join(__dirname, "..", "..", "shared", "moningo.json");
+  const target = path.join(__dirname, "..", "..", "backend", "src", "contract", "moningo.json");
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, JSON.stringify(out, null, 2));
   console.log(`Wrote ${path.relative(process.cwd(), target)}`);

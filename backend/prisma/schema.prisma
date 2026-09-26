@@ -1,0 +1,31 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               Int        @id @default(autoincrement())
+  walletAddress    String     @unique
+  totalScore       Int        @default(0)
+  lessonsCompleted Int        @default(0)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  progress         Progress[]
+}
+
+model Progress {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  lessonId  Int
+  score     Int
+  day       String // YYYY-MM-DD (UTC)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, lessonId, day])
+}

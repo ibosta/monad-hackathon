@@ -1,6 +1,6 @@
 // Top up the reward pool: AMOUNT_MON=1 npm run fund:testnet
 const hre = require("hardhat");
-const { address } = require("../../shared/moningo.json");
+const { address } = require("../../backend/src/contract/moningo.json");
 
 async function main() {
   const [signer] = await hre.ethers.getSigners();
