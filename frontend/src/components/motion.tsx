@@ -10,6 +10,7 @@ import {
 } from "framer-motion";
 import { useEffect, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { BodyPortal } from "@/components/modal";
 
 export const spring = { type: "spring", stiffness: 380, damping: 28 } as const;
 
@@ -103,6 +104,7 @@ export function Confetti({ fire, count = 70 }: { fire: unknown; count?: number }
   );
   if (!fire) return null;
   return (
+    <BodyPortal>
     <div
       className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center overflow-hidden"
       aria-hidden
@@ -123,6 +125,7 @@ export function Confetti({ fire, count = 70 }: { fire: unknown; count?: number }
         />
       ))}
     </div>
+    </BodyPortal>
   );
 }
 

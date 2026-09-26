@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Flame, Home, BookOpen, Award, Swords, User, Map } from "lucide-react";
+import { Flame, Home, BookOpen, Award, Swords, User, Map, Zap } from "lucide-react";
+import { useAccount } from "wagmi";
 import { WalletButton } from "@/components/wallet-button";
 import { Mascot } from "@/components/mascot";
 import { spring } from "@/components/motion";
-import { useOnchainUser } from "@/hooks/use-moningo";
+import { useOnchainUser, usePractice } from "@/hooks/use-moningo";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -26,6 +27,8 @@ export function Navbar() {
   const pathname = usePathname();
   const { user } = useOnchainUser();
   const streak = user?.streak ?? 0;
+  const { address } = useAccount();
+  const { data: practice } = usePractice(address);
 
   return (
     <>
@@ -72,6 +75,20 @@ export function Navbar() {
           </nav>
 
           <div className="flex items-center gap-2">
+            {practice && (
+              <Link
+                href="/practice"
+                title="Practice energy"
+                className="flex items-center gap-0.5 rounded-full border border-yellow-300/30 bg-yellow-300/10 px-2.5 py-1.5 text-sm font-black text-yellow-300 transition-colors hover:bg-yellow-300/20"
+              >
+                <Zap className="h-4 w-4 fill-yellow-300" />
+                <AnimatePresence mode="popLayout">
+                  <motion.span key={practice.energy} initial={{ y: -12, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 12, opacity: 0 }}>
+                    {practice.energy}
+                  </motion.span>
+                </AnimatePresence>
+              </Link>
+            )}
             <Link
               href="/streak"
               title="Streak tree"
