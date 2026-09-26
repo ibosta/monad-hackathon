@@ -5,7 +5,7 @@ const { client, verifier, getOnchainUser } = require("./chain");
 
 const load = (name) => {
   try {
-    return require(`./contract/${name}.json`);
+    return require(require("path").join(require("./chain").CONTRACTS_DIR, `${name}.json`));
   } catch {
     return { address: "", abi: [] };
   }

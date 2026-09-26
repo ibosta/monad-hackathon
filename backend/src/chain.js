@@ -1,7 +1,10 @@
 const { createPublicClient, http, isAddress, getAddress, formatEther } = require("viem");
 const { privateKeyToAccount } = require("viem/accounts");
 const { monadTestnet, hardhat } = require("viem/chains");
-const deployment = require("./contract/moningo.json");
+const path = require("path");
+// Folder with deployed address+ABI JSON files (override for local chains / tests).
+const CONTRACTS_DIR = process.env.CONTRACTS_DIR || path.join(__dirname, "contract");
+const deployment = require(path.join(CONTRACTS_DIR, "moningo.json"));
 
 const RPC_URL = process.env.MONAD_RPC_URL || "https://testnet-rpc.monad.xyz";
 // Local hardhat node for tests/dev; Monad Testnet otherwise.
@@ -147,6 +150,7 @@ async function getCertificate(tokenId) {
 }
 
 module.exports = {
+  CONTRACTS_DIR,
   getCertificates,
   getCertificate,
   signExam,
