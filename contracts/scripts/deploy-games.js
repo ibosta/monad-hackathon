@@ -9,15 +9,9 @@ async function deploy(name, args) {
   const address = await c.getAddress();
   const { abi } = await hre.artifacts.readArtifact(name);
   const chainId = Number((await hre.ethers.provider.getNetwork()).chainId);
-  const file = path.join(
-    __dirname,
-    "..",
-    "..",
-    "backend",
-    "src",
-    "contract",
-    `${name.replace("Moningo", "").toLowerCase()}.json`
-  );
+  const dir =
+    process.env.CONTRACTS_OUT_DIR || path.join(__dirname, "..", "..", "backend", "src", "contract");
+  const file = path.join(dir, `${name.replace("Moningo", "").toLowerCase()}.json`);
   fs.writeFileSync(
     file,
     JSON.stringify({ address, chainId, deployedAt: new Date().toISOString(), abi }, null, 2)
