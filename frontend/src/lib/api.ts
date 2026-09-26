@@ -163,6 +163,16 @@ export const api = {
   lessons: () => request<Lesson[]>("/api/english-lessons"),
   syncProgress: (walletAddress: string, lessonId: number, score: number) =>
     post<SyncProgressResponse>("/api/sync-progress", { walletAddress, lessonId, score }),
+  /** Sponsored (gasless) daily claim: the backend submits the tx and pays gas. */
+  dailyClaim: (walletAddress: string) =>
+    post<{
+      success: boolean;
+      txHash: `0x${string}`;
+      ms: number;
+      streak: number | null;
+      reward: string | null;
+      nextReward: string | null;
+    }>("/api/daily/claim", { walletAddress }),
   claimSignature: (walletAddress: string) =>
     post<{ success: boolean; signature: `0x${string}` }>("/api/claim-signature", { walletAddress }),
   levelTest: (address: string) =>

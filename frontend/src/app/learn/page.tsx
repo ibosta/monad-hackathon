@@ -13,8 +13,9 @@ import { TxBadge } from "@/components/tx-badge";
 import { WalletButton } from "@/components/wallet-button";
 import { api, type Lesson } from "@/lib/api";
 import { nextTier, rewardFor } from "@/lib/contract";
-import { useMoningoTx, useOnchainUser, type TxResult } from "@/hooks/use-moningo";
-import { withTxToast } from "@/lib/tx-toast";
+import { useOnchainUser, type TxResult } from "@/hooks/use-moningo";
+import { toast } from "sonner";
+import { LoadError } from "@/components/load-error";
 import { cn } from "@/lib/utils";
 
 type Feedback = { correct: boolean; answer: string } | null;
@@ -24,10 +25,14 @@ export default function LearnPage() {
   useEffect(() => setMounted(true), []);
   const { address, isConnected } = useAccount();
   const qc = useQueryClient();
-  const send = useMoningoTx();
   const { user, refetch: refetchOnchain } = useOnchainUser();
-  const { data: lessons } = useQuery({ queryKey: ["lessons"], queryFn: api.lessons });
-  const { data: me, refetch: refetchMe } = useQuery({
+  const lessonsQ = useQuery({ queryKey: ["lessons"], queryFn: api.lessons });
+  const lessons = lessonsQ.data;
+  const {
+    data: me,
+    refetch: refetchMe,
+    isError: meError,
+  } = useQuery({
     queryKey: ["user", address],
     queryFn: () => api.user(address!),
     enabled: Boolean(address),
@@ -40,7 +45,6 @@ export default function LearnPage() {
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [wrongPulse, setWrongPulse] = useState(0);
   const [combo, setCombo] = useState(0);
-  const [signature, setSignature] = useState<`0x${string}` | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [claimTx, setClaimTx] = useState<TxResult | null>(null);
 
@@ -86,8 +90,7 @@ export default function LearnPage() {
       let rest = queue!.slice(1);
       if (feedback.correct) {
         const score = firstTry[current.id] === false ? 50 : 100;
-        const res = await api.syncProgress(address, current.id, score);
-        if (res.signature) setSignature(res.signature);
+        await api.syncProgress(address, current.id, score);
       } else {
         rest = [...rest, current]; // try again later
       }
@@ -97,25 +100,22 @@ export default function LearnPage() {
       if (rest.length === 0) await refetchMe();
     });
 
+  /** Sponsored claim: the backend sends the tx and pays gas, so the full reward lands in the wallet. */
   const claim = () =>
     run("Claiming", async () => {
-      const fresh = async () => (await api.claimSignature(address!)).signature;
-      let sig = signature ?? (await fresh());
-      let tx: TxResult;
+      const id = toast.loading(`Claiming +${todayReward} MON…`, { description: "Gas is on us ⛽" });
       try {
-        tx = await withTxToast(`Claim +${todayReward} MON`, () => send("completeDaily", [sig]));
+        const r = await api.dailyClaim(address!);
+        setClaimTx({ hash: r.txHash, ms: r.ms });
+        toast.success(`+${r.reward ?? todayReward} MON received 🎉`, {
+          id,
+          description: `Settled on Monad in ${(r.ms / 1000).toFixed(2)}s · streak ${r.streak ?? todayStreak}`,
+        });
       } catch (e) {
-        // A signature is bound to the UTC day; if the day rolled over, fetch a fresh one once.
-        if (!(e instanceof Error && /proof rejected|BadSignature/i.test(e.message))) throw e;
-        sig = await fresh();
-        tx = await withTxToast(`Claim +${todayReward} MON`, () => send("completeDaily", [sig]));
+        toast.error("Claim failed", { id, description: e instanceof Error ? e.message : "Try again" });
+        throw e;
       }
-      setClaimTx(tx);
-      await Promise.all([
-        refetchOnchain(),
-        refetchMe(),
-        qc.invalidateQueries({ queryKey: ["config"] }),
-      ]);
+      await Promise.all([refetchOnchain(), refetchMe(), qc.invalidateQueries({ queryKey: ["config"] })]);
     });
 
   if (!mounted) return null;
@@ -132,6 +132,16 @@ export default function LearnPage() {
     );
   }
 
+  if (lessonsQ.isError || meError)
+    return (
+      <LoadError
+        what="today's lessons"
+        onRetry={() => {
+          lessonsQ.refetch();
+          refetchMe();
+        }}
+      />
+    );
   if (!lessons || !me) return <Hub mood="think" title="Loading today's lessons…" text="" />;
 
   // ---------- In-lesson view ----------
@@ -288,7 +298,7 @@ export default function LearnPage() {
             <Hub
               mood="cheer"
               title="All lessons done!"
-              text={`Claim today's reward. Day ${todayStreak} of your streak pays +${todayReward} MON.`}
+              text={`Day ${todayStreak} of your streak pays +${todayReward} MON. Gas is sponsored by Moningo, so you keep the full reward.`}
             >
               <ActionButton busy={busy} onClick={claim} className="btn-green">
                 Claim +{todayReward} MON

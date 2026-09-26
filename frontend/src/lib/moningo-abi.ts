@@ -162,6 +162,11 @@ export const moningoAbi = [
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "NotVerifier",
+    "type": "error"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -505,6 +510,19 @@ export const moningoAbi = [
       }
     ],
     "name": "completeDaily",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "completeDailyFor",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
