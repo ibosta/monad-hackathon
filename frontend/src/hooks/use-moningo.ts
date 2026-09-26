@@ -7,6 +7,7 @@ import { BaseError, ContractFunctionRevertedError } from "viem";
 import { api } from "@/lib/api";
 import { GAS, envContractAddress, moningoAbi, type OnchainUser } from "@/lib/contract";
 import { MONAD_CHAIN_ID } from "@/lib/wagmi";
+import { walletErrorMessage } from "@/lib/wallet-errors";
 
 type WriteFn = keyof typeof GAS;
 
@@ -105,14 +106,14 @@ const FRIENDLY: Record<string, string> = {
 };
 
 export function explainError(e: unknown): string {
+  const wallet = walletErrorMessage(e);
+  if (wallet) return wallet;
   if (e instanceof BaseError) {
     const revert = e.walk((err) => err instanceof ContractFunctionRevertedError);
     if (revert instanceof ContractFunctionRevertedError) {
       const name = revert.data?.errorName ?? "";
       return FRIENDLY[name] ?? name ?? revert.shortMessage;
     }
-    if (/rejected|denied/i.test(e.message)) return "Transaction rejected in wallet.";
-    if (/insufficient/i.test(e.message)) return "Not enough MON. Get some from the faucet.";
     return e.shortMessage;
   }
   return e instanceof Error ? e.message : "Something went wrong";

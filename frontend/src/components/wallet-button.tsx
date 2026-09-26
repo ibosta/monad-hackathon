@@ -9,7 +9,8 @@ import {
   useSwitchChain,
   type Connector,
 } from "wagmi";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { walletErrorMessage } from "@/lib/wallet-errors";
 import { Wallet, LogOut, Zap, AlertTriangle, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,14 +25,16 @@ import { MONAD_CHAIN_ID } from "@/lib/wagmi";
 
 export function WalletButton() {
   const { address, isConnected } = useAccount();
-  const { connectors, connectAsync, isPending, error: connectError } = useConnect();
+  const { connectors, connectAsync } = useConnect();
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
-  const { switchChain, isPending: switching } = useSwitchChain();
+  const { switchChainAsync, isPending: switching } = useSwitchChain();
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [connectingId, setConnectingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef(false);
 
   useEffect(() => setMounted(true), []);
 
@@ -43,19 +46,39 @@ export function WalletButton() {
   const wrongNetwork = mounted && isConnected && chainId !== MONAD_CHAIN_ID;
 
   const handleConnect = async (connector: Connector) => {
+    // Wallets allow one pending permission request per site; never fire a second one.
+    if (inFlight.current) {
+      setError("A request is already open in your wallet. Open the MetaMask extension and approve or reject it.");
+      return;
+    }
+    inFlight.current = true;
     setConnectingId(connector.uid);
+    setError(null);
     try {
-      await connectAsync({ connector });
+      await connectAsync({ connector, chainId: MONAD_CHAIN_ID });
       setPickerOpen(false);
     } catch (e) {
       console.error("connect failed", e);
+      setError(walletErrorMessage(e) ?? "Couldn't connect. Please try again.");
     } finally {
+      inFlight.current = false;
       setConnectingId(null);
     }
   };
 
-  // Deduplicate connectors by name (multi-injected discovery can create dups)
-  const uniqueConnectors = connectors.filter(
+  const switchToMonad = async () => {
+    setError(null);
+    try {
+      await switchChainAsync({ chainId: MONAD_CHAIN_ID });
+    } catch (e) {
+      setError(walletErrorMessage(e) ?? "Couldn't switch network. Switch to Monad Testnet in your wallet.");
+    }
+  };
+
+  // EIP-6963 wallets (MetaMask, Rabby, …) already cover window.ethereum, so hide the
+  // generic "Injected" entry when a named wallet was discovered. Also dedupe by name.
+  const named = connectors.filter((c) => c.id !== "injected");
+  const uniqueConnectors = (named.length ? named : connectors).filter(
     (c, i, arr) => arr.findIndex((x) => x.name === c.name) === i
   );
 
@@ -76,7 +99,13 @@ export function WalletButton() {
           <span className="hidden sm:inline">Connect Wallet</span>
           <span className="sm:hidden">Connect</span>
         </button>
-        <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <Dialog
+          open={pickerOpen}
+          onOpenChange={(open) => {
+            setPickerOpen(open);
+            if (open) setError(null);
+          }}
+        >
           <DialogContent className="max-w-sm">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -106,7 +135,7 @@ export function WalletButton() {
                 <button
                   key={connector.uid}
                   onClick={() => handleConnect(connector)}
-                  disabled={isPending}
+                  disabled={Boolean(connectingId)}
                   className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-secondary/30 px-4 py-3 text-left text-sm font-medium transition-all hover:border-monad/40 hover:bg-secondary disabled:opacity-50"
                 >
                   <span>{connector.name}</span>
@@ -117,11 +146,12 @@ export function WalletButton() {
                   )}
                 </button>
               ))}
-              {connectError && (
-                <p className="text-sm text-destructive">
-                  {connectError.message || "Connection failed."}
+              {connectingId && !error && (
+                <p className="rounded-xl bg-monad/10 p-3 text-sm text-monad-100">
+                  Check your wallet: approve the connection request there.
                 </p>
               )}
+              {error && <p className="rounded-xl bg-duo-red/15 p-3 text-sm font-semibold text-duo-red">{error}</p>}
             </div>
           </DialogContent>
         </Dialog>
@@ -131,10 +161,15 @@ export function WalletButton() {
 
   if (wrongNetwork) {
     return (
-      <button onClick={() => switchChain({ chainId: MONAD_CHAIN_ID })} disabled={switching} className="btn-berry px-4 py-2 text-xs">
-        {switching ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
-        Switch to Monad
-      </button>
+      <div className="relative">
+        <button onClick={switchToMonad} disabled={switching} className="btn-berry px-4 py-2 text-xs">
+          {switching ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+          Switch to Monad
+        </button>
+        {error && (
+          <p className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl bg-[#1a0f3d] p-3 text-xs font-semibold text-duo-red shadow-xl">{error}</p>
+        )}
+      </div>
     );
   }
 
