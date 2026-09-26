@@ -2,7 +2,7 @@ import type { OnchainUser } from "./contract";
 
 export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5001";
 
-export type Lesson = { id: number; type: string; question: string; options: string[]; answer: string };
+export type Lesson = { id: number; type: string; question: string; options: string[]; answer: string; speak?: string };
 export type ExamQuestion = { id: number; level: number; question: string; options: string[] };
 
 export type AppConfig = {
@@ -48,6 +48,17 @@ export type UserResponse = {
   onchain: OnchainUser | null;
 };
 
+export type CertificateInfo = {
+  tokenId: number;
+  owner: string;
+  contract: string;
+  name: string;
+  description: string;
+  image: string;
+  level: string;
+  dailyLessons: number;
+};
+
 export type LeaderboardEntry = { walletAddress: string; totalScore: number; lessonsCompleted: number };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -70,9 +81,11 @@ export const api = {
     post<SyncProgressResponse>("/api/sync-progress", { walletAddress, lessonId, score }),
   claimSignature: (walletAddress: string) =>
     post<{ success: boolean; signature: `0x${string}` }>("/api/claim-signature", { walletAddress }),
-  levelTest: () => request<{ fee: string; questions: ExamQuestion[] }>("/api/level-test"),
+  levelTest: (address: string) => request<{ fee: string; questions: ExamQuestion[] }>(`/api/level-test?address=${address}`),
   submitLevelTest: (walletAddress: string, answers: Record<number, string>) =>
     post<ExamResult>("/api/level-test/submit", { walletAddress, answers }),
   user: (address: string) => request<UserResponse>(`/api/users/${address}`),
   leaderboard: () => request<LeaderboardEntry[]>("/api/leaderboard"),
+  certificates: (address: string) => request<CertificateInfo[]>(`/api/certificates/${address}`),
+  certificate: (tokenId: number) => request<CertificateInfo & { valid: boolean }>(`/api/certificate/${tokenId}`),
 };
