@@ -89,6 +89,19 @@ describe("Moningo", () => {
       );
     });
 
+    it("sponsored claim: only the verifier can claim for a user, who gets the full reward", async () => {
+      const { moningo, verifier, alice, bob } = await loadFixture(deploy);
+      await expect(
+        moningo.connect(bob).completeDailyFor(alice.address)
+      ).to.be.revertedWithCustomError(moningo, "NotVerifier");
+      const tx = moningo.connect(verifier).completeDailyFor(alice.address);
+      await expect(tx).to.changeEtherBalance(alice, mon("0.005"));
+      await expect(tx).to.emit(moningo, "DailyCompleted").withArgs(alice.address, 1, mon("0.005"));
+      await expect(
+        moningo.connect(verifier).completeDailyFor(alice.address)
+      ).to.be.revertedWithCustomError(moningo, "AlreadyClaimedToday");
+    });
+
     it("keeps the streak but skips the reward when the pool is empty", async () => {
       const [, verifier, alice] = await ethers.getSigners();
       const moningo = await ethers.deployContract("Moningo", [verifier.address]);

@@ -37,6 +37,7 @@ contract Moningo is ERC721, Ownable {
 
     error AlreadyClaimedToday();
     error BadSignature();
+    error NotVerifier();
     error WrongFee();
     error NoPaidExam();
     error BadLevel();
@@ -75,23 +76,32 @@ contract Moningo is ERC721, Ownable {
 
     /// @param signature Verifier signature over dailyDigest(msg.sender): bound to user and UTC day.
     function completeDaily(bytes calldata signature) external {
-        uint256 day = today();
-        if (lastClaimDay[msg.sender] == day) revert AlreadyClaimedToday();
         bytes32 digest = MessageHashUtils.toEthSignedMessageHash(dailyDigest(msg.sender));
         if (ECDSA.recover(digest, signature) != verifier) revert BadSignature();
+        _completeDaily(msg.sender);
+    }
 
-        uint256 streak = lastClaimDay[msg.sender] + 1 == day ? userStreaks[msg.sender] + 1 : 1;
-        userStreaks[msg.sender] = streak;
-        lastClaimDay[msg.sender] = day;
+    /// @notice Sponsored (gasless) claim: the verifier submits and pays gas, the user gets the full reward.
+    function completeDailyFor(address user) external {
+        if (msg.sender != verifier) revert NotVerifier();
+        _completeDaily(user);
+    }
+
+    function _completeDaily(address user) private {
+        uint256 day = today();
+        if (lastClaimDay[user] == day) revert AlreadyClaimedToday();
+        uint256 streak = lastClaimDay[user] + 1 == day ? userStreaks[user] + 1 : 1;
+        userStreaks[user] = streak;
+        lastClaimDay[user] = day;
 
         // An empty pool never blocks the streak; the reward is simply skipped.
         uint256 reward = rewardFor(streak);
         if (address(this).balance < reward) reward = 0;
         if (reward > 0) {
-            (bool ok, ) = msg.sender.call{ value: reward }("");
+            (bool ok, ) = user.call{ value: reward }("");
             if (!ok) revert TransferFailed();
         }
-        emit DailyCompleted(msg.sender, streak, reward);
+        emit DailyCompleted(user, streak, reward);
     }
 
     /// @notice Pay the exam fee to unlock one certification attempt. Fee funds daily rewards.
