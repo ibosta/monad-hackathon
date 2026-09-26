@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAccount } from "wagmi";
 import { Loader2, Swords, Timer, Zap, Bot, ExternalLink } from "lucide-react";
@@ -29,6 +31,15 @@ export default function DuelPage() {
   const [staking, setStaking] = useState(false);
   const [searchStart, setSearchStart] = useState(0);
   const { state } = duel;
+  const { data: stats, refetch: refetchStats } = useQuery({
+    queryKey: ["duel-stats", address],
+    queryFn: () => api.duelStats(address!),
+    enabled: Boolean(address),
+  });
+  useEffect(() => {
+    if (state.phase === "result" || state.phase === "idle") refetchStats();
+  }, [state.phase, refetchStats]);
+  const limitHit = Boolean(stats && stats.todayPlayed >= stats.dailyLimit);
 
   useEffect(() => {
     if (state.phase === "searching") setSearchStart(Date.now());
@@ -100,10 +111,23 @@ export default function DuelPage() {
                 <Rule k="Winner gets" v="0.99 MON" />
                 <Rule k="Fee" v="0.01 MON" />
               </div>
-              <button onClick={duel.findOpponent} disabled={Boolean(lowBalance)} className="btn-monad w-full sm:w-auto">
+              {stats && (
+                <div className="flex w-full items-center justify-between rounded-2xl bg-monad-900/60 px-4 py-2 text-sm font-bold">
+                  <span className="text-monad-200">Today</span>
+                  <span className="flex gap-1">
+                    {Array.from({ length: stats.dailyLimit }, (_, i) => (
+                      <span key={i} className={cn("h-3 w-3 rounded-full", i < stats.todayPlayed ? "bg-monad-700" : "bg-duo")} />
+                    ))}
+                  </span>
+                  <span className="text-white">{Math.max(0, stats.dailyLimit - stats.todayPlayed)} duels left</span>
+                </div>
+              )}
+              {stats && stats.winStreak > 0 && <p className="text-sm font-black text-flame">🔥 {stats.winStreak} win streak: keep it going for a badge NFT!</p>}
+              <button onClick={duel.findOpponent} disabled={Boolean(lowBalance) || limitHit} className="btn-monad w-full sm:w-auto">
                 <Swords className="h-5 w-5" /> Find opponent
               </button>
               {lowBalance && <p className="text-sm font-bold text-duo-red">You need at least ~0.52 MON to duel.</p>}
+              {limitHit && <p className="text-sm font-bold text-duo-red">Daily duel limit reached. Come back tomorrow!</p>}
               <p className="text-xs text-monad-300">{state.online} player(s) online · settled on Monad by the referee contract</p>
             </Shell>
           )}

@@ -69,7 +69,7 @@ export function Navbar() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-full border border-flame/30 bg-flame/10 px-3 py-1.5 text-sm font-black text-flame">
+            <Link href="/streak" title="Streak tree" className="flex items-center gap-1 rounded-full border border-flame/30 bg-flame/10 px-3 py-1.5 text-sm font-black text-flame transition-colors hover:bg-flame/20">
               <motion.span
                 animate={streak > 0 ? { scale: [1, 1.25, 1], rotate: [0, -8, 8, 0] } : {}}
                 transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 2 }}
@@ -81,7 +81,7 @@ export function Navbar() {
                   {streak}
                 </motion.span>
               </AnimatePresence>
-            </div>
+            </Link>
             <WalletButton />
           </div>
         </div>

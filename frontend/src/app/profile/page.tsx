@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Copy, Flame, Sparkles, BookOpen, Award, Swords } from "lucide-react";
 import { Mascot } from "@/components/mascot";
 import { CertificateCard } from "@/components/certificate-card";
+import { BadgeCollection } from "@/components/badges";
 import { CountUp, Stagger, StaggerItem, spring } from "@/components/motion";
 import { WalletButton } from "@/components/wallet-button";
 import { api } from "@/lib/api";
@@ -81,6 +82,14 @@ export default function ProfilePage() {
         <Stat icon={<BookOpen className="h-5 w-5 text-duo" />} label="Lessons" value={me?.lessonsCompleted ?? 0} />
         <Stat icon={<Swords className="h-5 w-5 text-berry-400" />} label="Duels won" value={duels?.wins ?? 0} />
       </section>
+
+      <StaggerItem>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-2xl font-black text-white">🏅 Achievement NFTs</h2>
+          <Link href="/streak" className="text-sm font-bold text-monad-300 hover:text-white">Streak tree →</Link>
+        </div>
+        <BadgeCollection address={address} />
+      </StaggerItem>
 
       <StaggerItem>
         <div className="mb-3 flex items-center justify-between">
